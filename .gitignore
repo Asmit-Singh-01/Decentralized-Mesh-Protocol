@@ -1,1 +1,30 @@
+# Build artifacts
+build/
+bin/
+out/
+*.o
+*.obj
+*.exe
+*.elf
+*.bin
 
+# CMake generated
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PlatformIO & Embedded
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# OS specific
+.DS_Store
+Thumbs.db
