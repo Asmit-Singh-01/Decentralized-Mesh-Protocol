@@ -1,3 +1,4 @@
+
 # Contributing to Decentralized Mesh Protocol 🚀
 
 Welcome to the **Decentralized Mesh Protocol** Hackathon! We are excited to have you contribute to our open-source project. Please follow these guidelines to make the contribution process smooth and effective for everyone.
@@ -14,18 +15,21 @@ Welcome to the **Decentralized Mesh Protocol** Hackathon! We are excited to have
 
 ## 🛠️ How to Contribute
 
-### Step 1: Fork and Clone
+### Step 1: Fork and Clone:
+
 1. Fork this repository to your GitHub account.
 2. Clone your forked repo:
    ```bash
    git clone [https://github.com/YOUR_USERNAME/Decentralized-Mesh-Protocol.git](https://github.com/YOUR_USERNAME/Decentralized-Mesh-Protocol.git)
    cd Decentralized-Mesh-Protocol
 
-Step 2: Create a Feature Branch
+Step 2: Create a Feature Branch:
+
 Always create a new branch for your work:
 git checkout -b feature/your-feature-name
 
-Step 3: Commit and Push
+Step 3: Commit and Push:
+
 Keep your commit messages clear and concise:
 git add .
 git commit -m "feat: added ESP32 node routing logic"
@@ -42,4 +46,5 @@ Step 4: Submit a Pull Request (PR)
  * Top 30 Contributors will receive cash prizes!
  * All valid contributors will receive participation certificates.
 
-# Happy Coding! 💻✨
+# 💻 Happy Coding! ✨
+
