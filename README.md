@@ -1,10 +1,10 @@
+
 # ⚡ Decentralized Mesh Protocol (Open-Core Swarm OS)
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/Asmit-Singh-01/Decentralized-Mesh-Protocol/build.yml?branch=main&style=for-the-badge&logo=github)
-![C++ Standard](https://img.shields.io/badge/C%2B%2B-17-blue.style=for-the-badge&logo=cplusplus)
+[![Build Status](https://github.com/Asmit-Singh-01/Decentralized-Mesh-Protocol/actions/workflows/build.yml/badge.svg)](https://github.com/Asmit-Singh-01/Decentralized-Mesh-Protocol/actions/workflows/build.yml)
+![C++ Standard](https://img.shields.io/badge/C%2B%2B-17-blue?style=for-the-badge&logo=cplusplus)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-ESP32-orange?style=for-the-badge&logo=platformio)
 ![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
-![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen.svg?style=for-the-badge)
 
 > **The Open-Standard Decentralized Backbone for Autonomous Swarm Robotics, Drones, and Distributed Edge Computing.**
 
@@ -14,7 +14,7 @@
 
 The **Decentralized Mesh Protocol** is an open-core, lightweight, zero-dependency C++17 communication and orchestration layer designed to transform independent hardware nodes (ESP32, Raspberry Pi, STM32, Custom Robotics Platforms) into a unified, self-healing autonomous swarm.
 
-Unlike traditional ROS (Robot Operating System) architectures that rely heavily on central network infrastructure, Wi-Fi access points, or master nodes, this protocol operates on zero-infrastructure **peer-to-peer (P2P) mesh topology**. Nodes auto-discover, form dynamically routed mesh graphs, execute mission tasks, and secure payloads over air using hardware-level AES-128 CTR encryption.
+Unlike traditional ROS architectures that rely heavily on central network infrastructure, Wi-Fi access points, or master nodes, this protocol operates on zero-infrastructure **peer-to-peer (P2P) mesh topology**. Nodes auto-discover, form dynamically routed mesh graphs, execute mission tasks, and secure payloads over air using hardware-level AES-128 CTR encryption.
 
 ---
 
@@ -22,6 +22,7 @@ Unlike traditional ROS (Robot Operating System) architectures that rely heavily 
 
 The system is architected into 5 modular, loosely coupled abstractions:
 
+```text
 +-----------------------------------------------------------------+
 |               Application Layer (Swarm Missions)                |
 +-----------------------------------------------------------------+
@@ -52,9 +53,6 @@ The system is architected into 5 modular, loosely coupled abstractions:
 * **Enterprise Security:** Built-in lightweight AES-128 CTR block encryption preventing air-sniffing and network injection attacks.
 
 ---
-
-## 📂 Repository File Structure
-
 Decentralized-Mesh-Protocol/
 ├── .github/
 │   └── workflows/
@@ -78,7 +76,7 @@ Decentralized-Mesh-Protocol/
 ├── CMakeLists.txt                # Desktop compilation configuration
 ├── platformio.ini                # Embedded PlatformIO build flags
 └── README.md                     # Documentation
-
+              
 ---
 
 ## 💻 Quickstart & Setup Guide
