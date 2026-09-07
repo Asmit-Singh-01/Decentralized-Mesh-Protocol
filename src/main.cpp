@@ -2,6 +2,7 @@
 #include <cstring>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "routing_failover_demo.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -45,7 +46,12 @@ int main() {
         return 1;
     }
 
+    // 3. Fallback Route Selection Verification (issue #10)
+    if (!run_routing_failover_demo()) {
+        std::cerr << "[ERROR] Fallback route selection demo reported a failure!" << std::endl;
+        return 1;
+    }
+
     std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
     return 0;
 }
-
