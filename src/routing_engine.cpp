@@ -100,7 +100,7 @@ bool RoutingEngine::report_route_failure(uint16_t destination_id, uint32_t curre
 
     RouteEntry& entry = it->second;
     if (entry.backup_hop_id == NO_ROUTE) {
-        std::cout << "[MESH WARN] Primary route to Node " << destination_id
+        std::cerr << "[MESH WARN] Primary route to Node " << destination_id
                   << " failed! No backup hop available." << std::endl;
         failover_stats.failed_with_no_backup++;
         return false;
