@@ -2,6 +2,7 @@
 #include<iostream>
 #include <cstring>
 #include <algorithm>
+#include <Arduino.h> 
 
 MeshNode::MeshNode(uint16_t id) : node_id(id), current_seq(0), last_telemetry_ms(0) {}
 
@@ -97,13 +98,23 @@ const std::unordered_map<uint16_t, PeerInfo>& MeshNode::get_routing_table() cons
     return routing_table;
 }
 
-void MeshNode::print_telemetry(uint32_t current_time_ms, uint32_t interval_ms){
-    if ((current_time_ms - last_telemetry_ms) >= interval_ms){
-        std::cout<<"[Telemetry] Node: "<< node_id
-        << " | Current Sequence : " <<current_seq 
-        << " | Seen Packets: " << seen_packets.size() 
-        << " | Routing Table Size: " << routing_table.size() << std::endl;
+void MeshNode::print_telemetry(uint32_t current_time_ms, uint32_t interval_ms) {
+    if ((current_time_ms - last_telemetry_ms) >= interval_ms) {
+        last_telemetry_ms = current_time_ms; // Proper reset
+        
+        // Grab hardware RAM status
+        uint32_t free_ram_kb = ESP.getFreeHeap() / 1024;
+        
+        // Calculate mock loss percentage (since we don't have a dropped packets tracker yet)
+        float loss_percent = 0.0;
 
-        last_telemetry_ms = current_time_ms;
+        // Print using the exact format requested
+        Serial.printf("[TELEMETRY] Free RAM: %u KB | Active Nodes: %u | Sent: %u | Recv: %u | Loss: %.1f%%\n",
+            free_ram_kb,
+            routing_table.size(),
+            current_seq,
+            seen_packets.size(),
+            loss_percent
+        );
     }
 }
