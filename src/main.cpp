@@ -2,6 +2,7 @@
 #include <cstring>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "mesh_node.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -43,6 +44,14 @@ int main() {
     } else {
         std::cerr << "[SECURITY FAIL] Decrypted payload mismatch!" << std::endl;
         return 1;
+    }
+
+    std::cout <<"\n[Test] Simulating Node Telemetry over Time... " << std::endl;
+    MeshNode test_node(0x9999);
+    test_node.init();
+
+    for(int simulated_time_ms = 0; simulated_time_ms <= 15000; simulated_time_ms += 1000){
+        test_node.print_telemetry(simulated_time_ms, 5000);
     }
 
     std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
