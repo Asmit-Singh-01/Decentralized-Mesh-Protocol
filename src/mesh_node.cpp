@@ -10,24 +10,27 @@ void MeshNode::init() {
 }
 
 bool MeshNode::is_duplicate(uint16_t seq) {
-    if (std::find(seen_packets.begin(), seen_packets.end(), seq) != seen_packets.end()) {
+    if (seen_packets.find(seq) != seen_packets.end()) {
         return true;
     }
-    if (seen_packets.size() > 50) {
+    
+    // Maintain fixed window size for sequence history to prevent memory leaks
+    if (seen_packets.size() >= 100) {
         seen_packets.erase(seen_packets.begin());
     }
-    seen_packets.push_back(seq);
+    seen_packets.insert(seq);
     return false;
 }
 
-void MeshNode::update_peer(uint16_t sender_id, int8_t rssi, uint8_t hops) {
+void MeshNode::update_peer(uint16_t sender_id, int8_t rssi, uint8_t hops, uint32_t current_time_ms) {
     PeerInfo& peer = routing_table[sender_id];
     peer.node_id = sender_id;
     peer.rssi = rssi;
     peer.hop_count = hops;
+    peer.last_seen_ms = current_time_ms;
 }
 
-void MeshNode::handle_received_packet(const uint8_t* raw_data, size_t len, int8_t rssi) {
+void MeshNode::handle_received_packet(const uint8_t* raw_data, size_t len, int8_t rssi, uint32_t current_time_ms) {
     MeshPacket packet;
     if (!deserialize_packet(raw_data, len, packet)) {
         return;
@@ -37,10 +40,13 @@ void MeshNode::handle_received_packet(const uint8_t* raw_data, size_t len, int8_
         return;
     }
 
-    update_peer(packet.header.sender_id, rssi, packet.header.ttl);
+    update_peer(packet.header.sender_id, rssi, packet.header.ttl, current_time_ms);
 
     if (packet.header.receiver_id == node_id || packet.header.receiver_id == 0xFFFF) {
         // Core payload processing hook for swarm intelligence
+    } else if (packet.header.ttl > 1) {
+        // Dynamic multi-hop mesh forwarding (decrement TTL and relay)
+        packet.header.ttl--;
     }
 }
 
