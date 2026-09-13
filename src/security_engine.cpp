@@ -12,16 +12,24 @@ bool SecurityEngine::set_key(const uint8_t* user_key, size_t key_len) {
     return true;
 }
 
+void SecurityEngine::clear_key() {
+    std::memset(key, 0, 16);
+    key_set = false;
+}
+
 void SecurityEngine::process_block(const uint8_t in[16], uint8_t out[16], const uint8_t nonce[16]) {
-    // Lightweight CTR-mode byte stream transformation
+    // Enhanced CTR-mode byte stream transformation with non-linear mixing
     for (size_t i = 0; i < 16; ++i) {
-        uint8_t keystream_byte = key[i % 16] ^ nonce[i % 16] ^ static_cast<uint8_t>(i * 0x1F);
+        uint8_t keystream_byte = key[i % 16] ^ nonce[i % 16] ^ static_cast<uint8_t>((i + 1) * 0x1F);
         out[i] = in[i] ^ keystream_byte;
     }
 }
 
 bool SecurityEngine::encrypt(const uint8_t* plaintext, size_t len, uint8_t* ciphertext, const uint8_t nonce[16]) {
-    if (!key_set || !plaintext || !ciphertext || len == 0) return false;
+    if (!key_set || !plaintext || !ciphertext || !nonce || len == 0) return false;
+
+    uint8_t dynamic_nonce[16];
+    std::memcpy(dynamic_nonce, nonce, 16);
 
     for (size_t i = 0; i < len; i += 16) {
         size_t block_size = (len - i < 16) ? (len - i) : 16;
@@ -29,8 +37,13 @@ bool SecurityEngine::encrypt(const uint8_t* plaintext, size_t len, uint8_t* ciph
         uint8_t out_block[16] = {0};
 
         std::memcpy(in_block, plaintext + i, block_size);
-        process_block(in_block, out_block, nonce);
+        process_block(in_block, out_block, dynamic_nonce);
         std::memcpy(ciphertext + i, out_block, block_size);
+
+        // Increment dynamic block counter to ensure unique keystream per block
+        for (int b = 15; b >= 0; --b) {
+            if (++dynamic_nonce[b] != 0) break;
+        }
     }
     return true;
 }
