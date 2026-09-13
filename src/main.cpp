@@ -1,25 +1,66 @@
 #include <iostream>
 #include <cstring>
+#include <iomanip>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "packet_format.h"
+#include "mesh_node.h"
+
+void print_hex(const char* label, const uint8_t* data, size_t len) {
+    std::cout << label << ": ";
+    for (size_t i = 0; i < len; ++i) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(data[i]) << " ";
+    }
+    std::cout << std::dec << std::endl;
+}
 
 int main() {
+    std::cout << "==================================================" << std::endl;
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
+    std::cout << "==================================================" << std::endl;
 
-    // 1. Swarm Orchestrator Initialization
-    SwarmOrchestrator node(0x1001);
-    node.init();
+    // 1. Mesh Node Initialization
+    MeshNode local_node(0x1001);
+    local_node.init();
+    std::cout << "[SYSTEM] Node 0x1001 initialized successfully." << std::endl;
+
+    // 2. Swarm Orchestrator Initialization
+    SwarmOrchestrator orchestrator(0x1001);
+    orchestrator.init();
 
     std::cout << "[SYSTEM] Assigning autonomous swarm mission tasks..." << std::endl;
-    node.assign_task(101, 1);
-    node.assign_task(102, 2);
+    orchestrator.assign_task(101, 1);
+    orchestrator.assign_task(102, 5); // Higher priority task
 
     std::cout << "[SYSTEM] Running initial orchestration cycle..." << std::endl;
-    node.execute_orchestration_cycle(1000);
+    orchestrator.execute_orchestration_cycle(1000);
 
-    std::cout << "[SUCCESS] Active task queue size: " << node.get_tasks().size() << std::endl;
+    // 3. Packet Serialization and CRC Check
+    std::cout << "\n[NETWORK] Testing Packet Serialization & CRC16..." << std::endl;
+    MeshPacket tx_packet;
+    tx_packet.header.magic = PROTOCOL_MAGIC_BYTE;
+    tx_packet.header.type = 0x01;
+    tx_packet.header.sender_id = 0x1001;
+    tx_packet.header.receiver_id = 0x1002;
+    tx_packet.header.sequence_num = 1;
+    tx_packet.header.ttl = 5;
+    
+    const char* dummy_data = "PING_PAYLOAD";
+    tx_packet.header.payload_len = std::strlen(dummy_data);
+    std::memcpy(tx_packet.payload, dummy_data, tx_packet.header.payload_len);
 
-    // 2. AES-128 Security Pipeline Verification
+    uint8_t buffer[256] = {0};
+    size_t serialized_len = 0;
+    
+    if (serialize_packet(tx_packet, buffer, serialized_len)) {
+        std::cout << "[SUCCESS] Packet Serialized! Size: " << serialized_len << " bytes" << std::endl;
+        print_hex("Raw Packet Buffer", buffer, serialized_len);
+    } else {
+        std::cerr << "[ERROR] Packet Serialization Failed!" << std::endl;
+        return 1;
+    }
+
+    // 4. AES-128 Security Pipeline Verification
     std::cout << "\n[SECURITY] Initializing AES-128 Encryption Engine..." << std::endl;
     SecurityEngine sec;
     uint8_t secret_key[16] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10};
@@ -45,7 +86,10 @@ int main() {
         return 1;
     }
 
-    std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
+    sec.clear_key(); // Wipe sensitive key material
+
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << ">>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
+    std::cout << "==================================================" << std::endl;
     return 0;
 }
-
