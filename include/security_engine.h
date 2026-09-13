@@ -1,6 +1,7 @@
 #pragma once
-#include <stdint.h>
-#include <stddef.h>
+
+#include <cstdint>
+#include <cstddef>
 
 class SecurityEngine {
 private:
@@ -11,8 +12,11 @@ private:
 
 public:
     SecurityEngine();
+    ~SecurityEngine();
     
     bool set_key(const uint8_t* user_key, size_t key_len);
+    void clear_key();
+    
     bool encrypt(const uint8_t* plaintext, size_t len, uint8_t* ciphertext, const uint8_t nonce[16]);
     bool decrypt(const uint8_t* ciphertext, size_t len, uint8_t* plaintext, const uint8_t nonce[16]);
 };
