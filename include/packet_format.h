@@ -1,9 +1,10 @@
 #pragma once
-#include <stdint.h>
-#include <stddef.h>
 
-#define MAX_PAYLOAD_SIZE 64
-#define PROTOCOL_MAGIC_BYTE 0xD7
+#include <cstdint>
+#include <cstddef>
+
+constexpr size_t MAX_PAYLOAD_SIZE = 64;
+constexpr uint8_t PROTOCOL_MAGIC_BYTE = 0xD7;
 
 enum class PacketType : uint8_t {
     BEACON = 0x01,
@@ -35,4 +36,3 @@ struct MeshPacket {
 uint16_t calculate_crc16(const uint8_t* data, size_t length);
 bool serialize_packet(const MeshPacket& packet, uint8_t* buffer, size_t& out_len);
 bool deserialize_packet(const uint8_t* buffer, size_t length, MeshPacket& out_packet);
-
