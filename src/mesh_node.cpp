@@ -1,6 +1,7 @@
 #include "mesh_node.h"
 #include <cstring>
 #include <algorithm>
+#include <iostream>
 
 MeshNode::MeshNode(uint16_t id) : node_id(id), current_seq(0) {}
 
@@ -94,4 +95,23 @@ void MeshNode::cleanup_dead_peers(uint32_t timeout_ms, uint32_t current_time_ms)
 
 const std::unordered_map<uint16_t, PeerInfo>& MeshNode::get_routing_table() const {
     return routing_table;
+}
+uint16_t MeshNode::select_best_neighbor() const {
+    int8_t best_rssi = -128;
+    uint16_t best_id = 0;
+    if(routing_table.empty()){
+        return best_id;
+    }
+    for (const auto& pair : routing_table) {
+        const PeerInfo& peer = pair.second; 
+        if (peer.rssi != 0 && peer.rssi > best_rssi) {
+            best_rssi = peer.rssi;
+            best_id = peer.node_id;
+        }
+    }
+    if (best_id != 0) {
+        std::cout << "[MESH] Selected route via Node ID: " << best_id
+                  << " (RSSI: " << static_cast<int>(best_rssi) << " dBm)" << std::endl;
+    }
+    return best_id;
 }

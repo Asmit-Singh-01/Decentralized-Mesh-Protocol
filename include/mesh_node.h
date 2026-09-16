@@ -31,4 +31,5 @@ public:
     
     void cleanup_dead_peers(uint32_t timeout_ms, uint32_t current_time_ms);
     const std::unordered_map<uint16_t, PeerInfo>& get_routing_table() const;
+    uint16_t select_best_neighbor() const;
 };
