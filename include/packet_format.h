@@ -23,6 +23,7 @@ struct PacketHeader {
     uint16_t sequence_num;
     uint8_t ttl;
     uint8_t payload_len;
+    uint8_t is_encrypted;
 };
 
 struct MeshPacket {

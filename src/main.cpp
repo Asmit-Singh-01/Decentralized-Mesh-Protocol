@@ -1,7 +1,9 @@
 #include <iostream>
 #include <cstring>
+#include <string>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "packet_format.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -42,6 +44,60 @@ int main() {
         std::cout << "[SECURITY SUCCESS] Encrypted packet decrypted with 100% integrity!" << std::endl;
     } else {
         std::cerr << "[SECURITY FAIL] Decrypted payload mismatch!" << std::endl;
+        return 1;
+    }
+
+    // 3. Issue #12: Standalone Payload Wrapper & Packet Header Encryption Flag Verification
+    std::cout << "\n[SECURITY ISSUE #12] Testing encrypt_payload and decrypt_payload wrappers..." << std::endl;
+    const uint8_t mesh_key[AES_KEY_SIZE] = DEFAULT_MESH_KEY;
+    const char* sensitive_telemetry = "NODE_0x1001_GPS:37.7749,-122.4194_BATTERY:98%";
+    size_t tel_len = std::strlen(sensitive_telemetry);
+
+    MeshPacket packet = {};
+    packet.header.magic = PROTOCOL_MAGIC_BYTE;
+    packet.header.type = static_cast<uint8_t>(PacketType::TELEMETRY_SWARM);
+    packet.header.sender_id = 0x1001;
+    packet.header.receiver_id = 0x1002;
+    packet.header.sequence_num = 42;
+    packet.header.ttl = 5;
+    packet.header.payload_len = static_cast<uint8_t>(tel_len);
+    packet.header.is_encrypted = 1;
+    std::memcpy(packet.payload, sensitive_telemetry, tel_len);
+
+    std::cout << "[SECURITY] Plaintext payload: \"" << sensitive_telemetry << "\"" << std::endl;
+
+    encrypt_payload(packet.payload, packet.header.payload_len, mesh_key);
+    std::cout << "[SECURITY] Ciphertext encrypted in-place (verified != plaintext)" << std::endl;
+    if (std::memcmp(packet.payload, sensitive_telemetry, tel_len) == 0) {
+        std::cerr << "[SECURITY FAIL] Payload was not encrypted!" << std::endl;
+        return 1;
+    }
+
+    uint8_t tx_buffer[256];
+    size_t tx_len = 0;
+    if (!serialize_packet(packet, tx_buffer, tx_len)) {
+        std::cerr << "[SECURITY FAIL] Serialization failed!" << std::endl;
+        return 1;
+    }
+
+    MeshPacket rx_packet = {};
+    if (!deserialize_packet(tx_buffer, tx_len, rx_packet)) {
+        std::cerr << "[SECURITY FAIL] Deserialization failed!" << std::endl;
+        return 1;
+    }
+
+    if (rx_packet.header.is_encrypted) {
+        std::cout << "[SECURITY] Receiver detected encrypted packet header flag (is_encrypted=1)." << std::endl;
+        bool ok = decrypt_payload(rx_packet.payload, rx_packet.header.payload_len, mesh_key);
+        if (!ok || std::memcmp(rx_packet.payload, sensitive_telemetry, tel_len) != 0) {
+            std::cerr << "[SECURITY FAIL] Wrapper decryption failed or data mismatch!" << std::endl;
+            return 1;
+        }
+        std::cout << "[SECURITY SUCCESS] Decrypted payload: \""
+                  << std::string(reinterpret_cast<char*>(rx_packet.payload), rx_packet.header.payload_len)
+                  << "\" (100% Match!)" << std::endl;
+    } else {
+        std::cerr << "[SECURITY FAIL] Header is_encrypted flag missing on receiver!" << std::endl;
         return 1;
     }
 

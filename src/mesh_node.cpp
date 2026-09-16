@@ -55,6 +55,7 @@ bool MeshNode::broadcast_payload(PacketType type, const uint8_t* data, uint8_t l
     packet.header.sequence_num = ++current_seq;
     packet.header.ttl = 5;
     packet.header.payload_len = len;
+    packet.header.is_encrypted = 0;
 
     if (data && len > 0) {
         std::memcpy(packet.payload, data, len);
@@ -74,6 +75,7 @@ bool MeshNode::send_to_node(uint16_t target_id, PacketType type, const uint8_t* 
     packet.header.sequence_num = ++current_seq;
     packet.header.ttl = 5;
     packet.header.payload_len = len;
+    packet.header.is_encrypted = 0;
 
     if (data && len > 0) {
         std::memcpy(packet.payload, data, len);
