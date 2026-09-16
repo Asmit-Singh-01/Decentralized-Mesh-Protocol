@@ -1,6 +1,7 @@
 #include "mesh_node.h"
 #include <cstring>
 #include <algorithm>
+#include <iostream>
 
 MeshNode::MeshNode(uint16_t id) : node_id(id), current_seq(0) {}
 
@@ -30,8 +31,14 @@ void MeshNode::update_peer(uint16_t sender_id, int8_t rssi, uint8_t hops) {
 void MeshNode::handle_received_packet(const uint8_t* raw_data, size_t len, int8_t rssi) {
     MeshPacket packet;
     if (!deserialize_packet(raw_data, len, packet)) {
-        return;
-    }
+        if (raw_data && len >= sizeof(PacketHeader)) {
+            const PacketHeader* hdr = reinterpret_cast<const PacketHeader*>(raw_data);
+            if (hdr->magic == PROTOCOL_MAGIC_BYTE) {
+                std::cout << "[MESH ERROR] Corrupted packet received from Node "<< hdr->sender_id << "! Dropping." << std::endl;
+                }
+            }
+            return;
+        }
 
     if (is_duplicate(packet.header.sequence_num)) {
         return;

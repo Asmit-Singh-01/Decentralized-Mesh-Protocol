@@ -35,4 +35,4 @@ struct MeshPacket {
 uint16_t calculate_crc16(const uint8_t* data, size_t length);
 bool serialize_packet(const MeshPacket& packet, uint8_t* buffer, size_t& out_len);
 bool deserialize_packet(const uint8_t* buffer, size_t length, MeshPacket& out_packet);
-
+bool is_valid_crc(const uint8_t* data, size_t length, uint16_t received_crc);

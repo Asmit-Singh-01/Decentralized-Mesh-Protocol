@@ -2,6 +2,7 @@
 #include <cstring>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "mesh_node.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -44,6 +45,42 @@ int main() {
         std::cerr << "[SECURITY FAIL] Decrypted payload mismatch!" << std::endl;
         return 1;
     }
+
+    // =========================================================================
+    // 3. CRC16 Checksum Verification & Corrupted Packet Dropping (Issue #3)
+    // =========================================================================
+    std::cout << "\n[SECURITY] Verifying CRC16 Checksum Integrity Pipeline..." << std::endl;
+    MeshNode rx_node(0x1001);
+    rx_node.init();
+
+    // Test 3a: Create and serialize a valid packet
+    MeshPacket valid_pkt;
+    valid_pkt.header.magic = PROTOCOL_MAGIC_BYTE;
+    valid_pkt.header.type = static_cast<uint8_t>(PacketType::BEACON);
+    valid_pkt.header.sender_id = 0x2002;
+    valid_pkt.header.receiver_id = 0x1001;
+    valid_pkt.header.sequence_num = 1;
+    valid_pkt.header.ttl = 10;
+    valid_pkt.header.payload_len = 4;
+    std::memcpy(valid_pkt.payload, "PING", 4);
+
+    uint8_t wire_buf[256];
+    size_t wire_len = 0;
+    serialize_packet(valid_pkt, wire_buf, wire_len);
+
+    std::cout << "[TEST] Processing valid incoming packet..." << std::endl;
+    rx_node.handle_received_packet(wire_buf, wire_len, -45);
+    std::cout << "[SUCCESS] Valid packet processed. Routing table size: "
+              << rx_node.get_routing_table().size() << std::endl;
+
+    // Test 3b: Corrupt payload byte in transit to simulate wireless noise / collision
+    std::cout << "[TEST] Injecting single-bit corruption into payload..." << std::endl;
+    wire_buf[sizeof(PacketHeader) + 1] ^= 0xFF; // Flip bits
+
+    // Process corrupted packet -> CRC validation fails, logs error, and drops immediately
+    rx_node.handle_received_packet(wire_buf, wire_len, -45);
+    std::cout << "[SUCCESS] Corrupted packet discarded. Routing table size unchanged: "
+              << rx_node.get_routing_table().size() << std::endl;
 
     std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
     return 0;

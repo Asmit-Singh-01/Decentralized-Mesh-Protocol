@@ -53,8 +53,7 @@ bool deserialize_packet(const uint8_t* buffer, size_t length, MeshPacket& out_pa
     uint16_t received_crc = 0;
     std::memcpy(&received_crc, buffer + sizeof(PacketHeader) + hdr->payload_len, sizeof(uint16_t));
 
-    uint16_t computed_crc = calculate_crc16(buffer, sizeof(PacketHeader) + hdr->payload_len);
-    if (received_crc != computed_crc) {
+    if (!is_valid_crc(buffer, sizeof(PacketHeader) + hdr->payload_len, received_crc)) {
         return false;
     }
 
@@ -65,3 +64,7 @@ bool deserialize_packet(const uint8_t* buffer, size_t length, MeshPacket& out_pa
     return true;
 }
 
+bool is_valid_crc(const uint8_t* data, size_t length, uint16_t received_crc) {
+        if (!data || length == 0) return false;
+        return calculate_crc16(data, length) == received_crc;
+    }
