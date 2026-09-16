@@ -5,6 +5,7 @@
 
 constexpr size_t MAX_PAYLOAD_SIZE = 64;
 constexpr uint8_t PROTOCOL_MAGIC_BYTE = 0xD7;
+constexpr uint8_t PACKET_FLAG_COMPRESSED = 0x01;
 
 enum class PacketType : uint8_t {
     BEACON = 0x01,
@@ -16,9 +17,11 @@ enum class PacketType : uint8_t {
 };
 
 #pragma pack(push, 1)
+
 struct PacketHeader {
     uint8_t magic;
     uint8_t type;
+    uint8_t flags;
     uint16_t sender_id;
     uint16_t receiver_id;
     uint16_t sequence_num;
@@ -31,8 +34,22 @@ struct MeshPacket {
     uint8_t payload[MAX_PAYLOAD_SIZE];
     uint16_t crc16;
 };
+
 #pragma pack(pop)
 
-uint16_t calculate_crc16(const uint8_t* data, size_t length);
-bool serialize_packet(const MeshPacket& packet, uint8_t* buffer, size_t& out_len);
-bool deserialize_packet(const uint8_t* buffer, size_t length, MeshPacket& out_packet);
+uint16_t calculate_crc16(
+    const uint8_t* data,
+    size_t length
+);
+
+bool serialize_packet(
+    const MeshPacket& packet,
+    uint8_t* buffer,
+    size_t& out_len
+);
+
+bool deserialize_packet(
+    const uint8_t* buffer,
+    size_t length,
+    MeshPacket& out_packet
+);
