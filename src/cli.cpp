@@ -57,14 +57,16 @@ void SerialCLI::cmd_status(uint32_t current_time_ms) {
     uint32_t uptime = (current_time_ms >= start_time_ms) ? (current_time_ms - start_time_ms) : current_time_ms;
     size_t peer_count = node.get_routing_table().size();
 
+    std::stringstream id_ss;
+    id_ss << "0x" << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
+          << node.get_node_id() << std::dec << " (" << node.get_node_id() << ")";
+
     std::cout << "+---------------------+-----------------------+" << std::endl;
     std::cout << "| Metric              | Value                 |" << std::endl;
     std::cout << "+---------------------+-----------------------+" << std::endl;
-    std::cout << "| Local Node ID       | 0x" << std::hex << std::uppercase << std::setw(4) << std::setfill('0')
-              << node.get_node_id() << std::dec << " (" << node.get_node_id() << ")" 
-              << std::setfill(' ') << std::setw(8) << " |" << std::endl;
-    std::cout << "| Active Neighbors    | " << std::left << std::setw(22) << peer_count << "|" << std::endl;
-    std::cout << "| System Uptime       | " << std::setw(19) << (std::to_string(uptime) + " ms") << " |" << std::endl;
+    std::cout << "| Local Node ID       | " << std::left << std::setw(21) << std::setfill(' ') << id_ss.str() << " |" << std::endl;
+    std::cout << "| Active Neighbors    | " << std::left << std::setw(21) << std::setfill(' ') << peer_count << " |" << std::endl;
+    std::cout << "| System Uptime       | " << std::left << std::setw(21) << std::setfill(' ') << (std::to_string(uptime) + " ms") << " |" << std::endl;
     std::cout << "+---------------------+-----------------------+" << std::endl;
 }
 
@@ -85,10 +87,10 @@ void SerialCLI::cmd_routes() {
         dest_ss << "0x" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << peer.node_id;
         hop_ss << "0x" << std::hex << std::uppercase << std::setw(4) << std::setfill('0') << peer.node_id;
 
-        std::cout << "| " << std::left << std::setw(12) << dest_ss.str()
-                  << "| " << std::setw(9) << hop_ss.str()
-                  << "| " << std::setw(11) << static_cast<int>(peer.rssi)
-                  << "| " << std::setw(11) << static_cast<int>(peer.hop_count)
+        std::cout << "| " << std::left << std::setw(11) << dest_ss.str() << " "
+                  << "| " << std::left << std::setw(8) << hop_ss.str() << " "
+                  << "| " << std::left << std::setw(10) << static_cast<int>(peer.rssi) << " "
+                  << "| " << std::left << std::setw(10) << static_cast<int>(peer.hop_count) << " "
                   << "|" << std::endl;
     }
     std::cout << "+-------------+----------+------------+------------+" << std::endl;
