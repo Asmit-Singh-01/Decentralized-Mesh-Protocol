@@ -2,6 +2,8 @@
 #include <cstring>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "mesh_node.h"
+#include "cli.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -44,6 +46,58 @@ int main() {
         std::cerr << "[SECURITY FAIL] Decrypted payload mismatch!" << std::endl;
         return 1;
     }
+
+    // =========================================================================
+    // 3. Interactive Serial CLI Verification (Issue #8)
+    // =========================================================================
+    std::cout << "\n[CLI] Initializing Serial CLI Command Interface..." << std::endl;
+    MeshNode cli_node(0x1001);
+    cli_node.init();
+
+    // Populate routing table with simulated neighbor nodes
+    MeshPacket pkt1;
+    pkt1.header.magic = PROTOCOL_MAGIC_BYTE;
+    pkt1.header.type = static_cast<uint8_t>(PacketType::BEACON);
+    pkt1.header.sender_id = 0x2001;
+    pkt1.header.receiver_id = 0x1001;
+    pkt1.header.sequence_num = 1;
+    pkt1.header.ttl = 10;
+    pkt1.header.payload_len = 0;
+
+    uint8_t buf[256];
+    size_t raw_len = 0;
+    serialize_packet(pkt1, buf, raw_len);
+    cli_node.handle_received_packet(buf, raw_len, -85);
+
+    MeshPacket pkt2;
+    pkt2.header.magic = PROTOCOL_MAGIC_BYTE;
+    pkt2.header.type = static_cast<uint8_t>(PacketType::BEACON);
+    pkt2.header.sender_id = 0x2002;
+    pkt2.header.receiver_id = 0x1001;
+    pkt2.header.sequence_num = 2;
+    pkt2.header.ttl = 10;
+    pkt2.header.payload_len = 0;
+
+    serialize_packet(pkt2, buf, raw_len);
+    cli_node.handle_received_packet(buf, raw_len, -42);
+
+    SerialCLI cli(cli_node, 0);
+
+    // Test 3a: mesh status command
+    std::cout << "\n--- Testing CLI: 'mesh status' ---" << std::endl;
+    cli.process_command("mesh status", 12500);
+
+    // Test 3b: mesh routes command
+    std::cout << "\n--- Testing CLI: 'mesh routes' ---" << std::endl;
+    cli.process_command("mesh routes");
+
+    // Test 3c: mesh ping command
+    std::cout << "\n--- Testing CLI: 'mesh ping 0x2002' ---" << std::endl;
+    cli.process_command("mesh ping 0x2002");
+
+    // Test 3d: unknown command handling
+    std::cout << "\n--- Testing CLI: unknown command ---" << std::endl;
+    cli.process_command("mesh unknown_cmd");
 
     std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
     return 0;
