@@ -1,103 +1,281 @@
 #include "packet_format.h"
+#include "compression.h"
+
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
 
-// Pre-computed CRC16-CCITT Lookup Table for high-performance zero-delay calculation
-static const uint16_t crc16_table[256] = {
-    0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
-    0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
-    0x1231, 0x0210, 0x3273, 0x2252, 0x52B5, 0x4294, 0x72F7, 0x62D6,
-    0x9339, 0x8318, 0xB37B, 0xA35A, 0xD3BD, 0xC39C, 0xF3FF, 0xE3DE,
-    0x2462, 0x3443, 0x0420, 0x1401, 0x64E6, 0x74C7, 0x44A4, 0x5485,
-    0xA56A, 0xB54B, 0x8528, 0x9509, 0xE5EE, 0xF5CF, 0xC5AC, 0xD58D,
-    0x3653, 0x2672, 0x1611, 0x0630, 0x76D7, 0x66F6, 0x5695, 0x46B4,
-    0xB75B, 0xA77A, 0x9719, 0x8738, 0xF7DF, 0xE7FE, 0xD79D, 0xC7BC,
-    0x48C4, 0x58E5, 0x6886, 0x78A7, 0x0840, 0x1861, 0x2802, 0x3823,
-    0xC9CC, 0xD9ED, 0xE98E, 0xF9AF, 0x8948, 0x9969, 0xA90A, 0xB92B,
-    0x5AF5, 0x4AD4, 0x7AB7, 0x6A96, 0x1A71, 0x0A50, 0x3A33, 0x2A12,
-    0xDBFD, 0xCBDC, 0xFBBF, 0xEB9E, 0x9B79, 0x8B58, 0xBB3B, 0xAB1A,
-    0x6CA6, 0x7C87, 0x4CE4, 0x5CC5, 0x2C22, 0x3C03, 0x0C60, 0x1C41,
-    0xEDAE, 0xFD8F, 0xCDEC, 0xDDCD, 0xAD2A, 0xBD0B, 0x8D68, 0x9D49,
-    0x7E97, 0x6EB6, 0x5ED5, 0x4EF4, 0x3E13, 0x2E32, 0x1E51, 0x0E70,
-    0xFF9F, 0xEFBE, 0xDFDD, 0xCFFC, 0xBF1B, 0xAF3A, 0x9F59, 0x8F78,
-    0x9188, 0x81A9, 0xB1CA, 0xA1EB, 0xD10C, 0xC12D, 0xF14E, 0xE16F,
-    0x1080, 0x00A1, 0x30C2, 0x20E3, 0x5004, 0x4025, 0x7046, 0x6067,
-    0x83B9, 0x9398, 0xA3FB, 0xB3DA, 0xC33D, 0xD31C, 0xE37F, 0xF35E,
-    0x02B1, 0x1290, 0x22F3, 0x32D2, 0x4235, 0x5214, 0x6277, 0x7256,
-    0xB5EA, 0xA5CB, 0x95A8, 0x8589, 0xF56E, 0xE54F, 0xD52C, 0xC50D,
-    0x34E2, 0x24C3, 0x14A0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
-    0xA7DB, 0xB7FA, 0x8799, 0x97B8, 0xE75F, 0xF77E, 0xC71D, 0xD73C,
-    0x26D3, 0x36F2, 0x0691, 0x16B0, 0x6657, 0x7676, 0x4615, 0x5634,
-    0xD94C, 0xC96D, 0xF90E, 0xE92F, 0x99C8, 0x89E9, 0xB98A, 0xA9AB,
-    0x5844, 0x4865, 0x7806, 0x6827, 0x18C0, 0x08E1, 0x3882, 0x28A3,
-    0xCB7D, 0xDB5C, 0xEB3F, 0xFB1E, 0x8BF9, 0x9BD8, 0xABBB, 0xBB9A,
-    0x4A75, 0x5A54, 0x6A37, 0x7A16, 0x0AF1, 0x1AD0, 0x2AB3, 0x3A92,
-    0xFD2E, 0xED0F, 0xDD6C, 0xCD4D, 0xBDAA, 0xADCB, 0x9DE8, 0x8DC9,
-    0x7C26, 0x6C07, 0x5C64, 0x4C45, 0x3CA2, 0x2C83, 0x1CC0, 0x0CE1,
-    0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFFA, 0x8FDD, 0x9FFC,
-    0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0
-};
-
-uint16_t calculate_crc16(const uint8_t* data, size_t length) {
-    if (!data || length == 0) return 0;
-    
-    uint16_t crc = 0xFFFF;
-    for (size_t i = 0; i < length; ++i) {
-        crc = (crc << 8) ^ crc16_table[((crc >> 8) ^ data[i]) & 0xFF];
+uint16_t calculate_crc16(const uint8_t* data, size_t length)
+{
+    if (data == nullptr || length == 0) {
+        return 0;
     }
+
+    uint16_t crc = 0xFFFF;
+
+    for (size_t i = 0; i < length; ++i) {
+        crc ^= static_cast<uint16_t>(data[i]) << 8;
+
+        for (int bit = 0; bit < 8; ++bit) {
+            if (crc & 0x8000U) {
+                crc = static_cast<uint16_t>(
+                    (crc << 1) ^ 0x1021U
+                );
+            } else {
+                crc = static_cast<uint16_t>(crc << 1);
+            }
+        }
+    }
+
     return crc;
 }
 
-bool serialize_packet(const MeshPacket& packet, uint8_t* buffer, size_t& out_len) {
-    if (!buffer || packet.header.payload_len > MAX_PAYLOAD_SIZE) {
+bool serialize_packet(
+    const MeshPacket& packet,
+    uint8_t* buffer,
+    size_t& out_len)
+{
+    if (buffer == nullptr ||
+        packet.header.payload_len > MAX_PAYLOAD_SIZE) {
         return false;
     }
 
-    size_t header_size = sizeof(PacketHeader);
-    size_t payload_size = packet.header.payload_len;
+    PacketHeader header = packet.header;
 
-    std::memcpy(buffer, &packet.header, header_size);
-    if (payload_size > 0 && packet.payload) {
-        std::memcpy(buffer + header_size, packet.payload, payload_size);
+    const size_t original_size = packet.header.payload_len;
+    const uint8_t* payload = packet.payload;
+    size_t payload_size = original_size;
+
+    uint8_t compressed_payload[MAX_PAYLOAD_SIZE] = {};
+    bool compressed = false;
+
+    /*
+     * Automatically compress swarm telemetry when:
+     * - the packet is telemetry
+     * - it is not already marked as compressed
+     * - the payload contains complete int16_t samples
+     * - compression actually makes the payload smaller
+     */
+    if (header.type ==
+            static_cast<uint8_t>(PacketType::TELEMETRY_SWARM) &&
+        (header.flags & PACKET_FLAG_COMPRESSED) == 0 &&
+        original_size > 0 &&
+        original_size <= MAX_PAYLOAD_SIZE &&
+        (original_size % sizeof(int16_t)) == 0) {
+
+        int16_t samples[MAX_PAYLOAD_SIZE / sizeof(int16_t)] = {};
+
+        std::memcpy(
+            samples,
+            packet.payload,
+            original_size
+        );
+
+        const size_t sample_count =
+            original_size / sizeof(int16_t);
+
+        const size_t compressed_size =
+            compress_telemetry(
+                samples,
+                sample_count,
+                compressed_payload
+            );
+
+        if (compressed_size > 0 &&
+            compressed_size < original_size &&
+            compressed_size <= MAX_PAYLOAD_SIZE) {
+
+            payload = compressed_payload;
+            payload_size = compressed_size;
+            header.flags |= PACKET_FLAG_COMPRESSED;
+            compressed = true;
+
+            const size_t saved_percent =
+                ((original_size - compressed_size) * 100) /
+                original_size;
+
+            std::printf(
+                "[MESH COMPRESS] Original: %zuB -> "
+                "Compressed: %zuB (%zu%% saved)\n",
+                original_size,
+                compressed_size,
+                saved_percent
+            );
+        } else {
+            header.flags &= static_cast<uint8_t>(
+                ~PACKET_FLAG_COMPRESSED
+            );
+        }
     }
 
-    uint16_t crc = calculate_crc16(buffer, header_size + payload_size);
-    std::memcpy(buffer + header_size + payload_size, &crc, sizeof(uint16_t));
+    header.payload_len =
+        static_cast<uint8_t>(payload_size);
 
-    out_len = header_size + payload_size + sizeof(uint16_t);
+    const size_t header_size = sizeof(PacketHeader);
+
+    std::memcpy(
+        buffer,
+        &header,
+        header_size
+    );
+
+    if (payload_size > 0) {
+        std::memcpy(
+            buffer + header_size,
+            payload,
+            payload_size
+        );
+    }
+
+    const uint16_t crc =
+        calculate_crc16(
+            buffer,
+            header_size + payload_size
+        );
+
+    std::memcpy(
+        buffer + header_size + payload_size,
+        &crc,
+        sizeof(uint16_t)
+    );
+
+    out_len =
+        header_size +
+        payload_size +
+        sizeof(uint16_t);
+
+    (void)compressed;
+
     return true;
 }
 
-bool deserialize_packet(const uint8_t* buffer, size_t length, MeshPacket& out_packet) {
-    size_t min_size = sizeof(PacketHeader) + sizeof(uint16_t);
-    if (!buffer || length < min_size) {
+bool deserialize_packet(
+    const uint8_t* buffer,
+    size_t length,
+    MeshPacket& out_packet)
+{
+    const size_t min_size =
+        sizeof(PacketHeader) + sizeof(uint16_t);
+
+    if (buffer == nullptr || length < min_size) {
         return false;
     }
 
-    PacketHeader hdr;
-    std::memcpy(&hdr, buffer, sizeof(PacketHeader));
+    PacketHeader header;
 
-    if (hdr.magic != PROTOCOL_MAGIC_BYTE) {
+    std::memcpy(
+        &header,
+        buffer,
+        sizeof(PacketHeader)
+    );
+
+    if (header.magic != PROTOCOL_MAGIC_BYTE) {
         return false;
     }
 
-    size_t expected_len = sizeof(PacketHeader) + hdr.payload_len + sizeof(uint16_t);
-    if (length < expected_len || hdr.payload_len > MAX_PAYLOAD_SIZE) {
+    if (header.payload_len > MAX_PAYLOAD_SIZE) {
+        return false;
+    }
+
+    const size_t expected_len =
+        sizeof(PacketHeader) +
+        header.payload_len +
+        sizeof(uint16_t);
+
+    if (length < expected_len) {
         return false;
     }
 
     uint16_t received_crc = 0;
-    std::memcpy(&received_crc, buffer + sizeof(PacketHeader) + hdr.payload_len, sizeof(uint16_t));
 
-    uint16_t computed_crc = calculate_crc16(buffer, sizeof(PacketHeader) + hdr.payload_len);
+    std::memcpy(
+        &received_crc,
+        buffer + sizeof(PacketHeader) +
+            header.payload_len,
+        sizeof(uint16_t)
+    );
+
+    const uint16_t computed_crc =
+        calculate_crc16(
+            buffer,
+            sizeof(PacketHeader) +
+                header.payload_len
+        );
+
     if (received_crc != computed_crc) {
         return false;
     }
 
-    out_packet.header = hdr;
-    if (hdr.payload_len > 0) {
-        std::memcpy(out_packet.payload, buffer + sizeof(PacketHeader), hdr.payload_len);
-    }
+    out_packet.header = header;
     out_packet.crc16 = received_crc;
+
+    const uint8_t* wire_payload =
+        buffer + sizeof(PacketHeader);
+
+    /*
+     * Decompress telemetry payloads after CRC validation.
+     */
+    if ((header.flags & PACKET_FLAG_COMPRESSED) != 0) {
+
+        if (header.type !=
+            static_cast<uint8_t>(
+                PacketType::TELEMETRY_SWARM)) {
+            return false;
+        }
+
+        int16_t samples[MAX_PAYLOAD_SIZE /
+                        sizeof(int16_t)] = {};
+
+        const size_t sample_count =
+            decompress_telemetry(
+                wire_payload,
+                header.payload_len,
+                samples,
+                MAX_PAYLOAD_SIZE /
+                    sizeof(int16_t)
+            );
+
+        if (sample_count == 0) {
+            return false;
+        }
+
+        const size_t decompressed_size =
+            sample_count * sizeof(int16_t);
+
+        if (decompressed_size > MAX_PAYLOAD_SIZE) {
+            return false;
+        }
+
+        std::memcpy(
+            out_packet.payload,
+            samples,
+            decompressed_size
+        );
+
+        out_packet.header.payload_len =
+            static_cast<uint8_t>(
+                decompressed_size
+            );
+
+        /*
+         * The packet is now represented in decoded form,
+         * so clear the wire-level compression flag.
+         */
+        out_packet.header.flags &=
+            static_cast<uint8_t>(
+                ~PACKET_FLAG_COMPRESSED
+            );
+
+        return true;
+    }
+
+    if (header.payload_len > 0) {
+        std::memcpy(
+            out_packet.payload,
+            wire_payload,
+            header.payload_len
+        );
+    }
 
     return true;
 }
