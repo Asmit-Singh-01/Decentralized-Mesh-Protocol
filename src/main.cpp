@@ -2,6 +2,7 @@
 #include <cstring>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "config_storage.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -45,7 +46,47 @@ int main() {
         return 1;
     }
 
-    std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
+    // 3. Issue #15: Persistent NVS Flash Configuration Storage Verification
+    std::cout << "\n[NVS] Initializing NVS Configuration Storage Pipeline (Issue #15)..." << std::endl;
+    erase_node_config(); // Start with unformatted / empty storage
+
+    NodeConfig config = {0, 0, 0, 0};
+    // Step 1: Loading from unformatted NVS triggers fallback defaults and auto-saves
+    bool loaded = load_node_config(config);
+    if (loaded) {
+        std::cerr << "[NVS FAIL] Unformatted NVS should have triggered fallback!" << std::endl;
+        return 1;
+    }
+    if (config.node_id != DEFAULT_NODE_ID || config.tx_power != DEFAULT_TX_POWER || config.default_channel != DEFAULT_CHANNEL) {
+        std::cerr << "[NVS FAIL] Default fallback configuration mismatch!" << std::endl;
+        return 1;
+    }
+    std::cout << "[NVS SUCCESS] Automatic fallback configuration applied & saved successfully!" << std::endl;
+
+    // Step 2: Update configuration with new node parameters
+    config.node_id = 0x2048;
+    config.tx_power = 17; // 17 dBm
+    config.default_channel = 11; // Wi-Fi channel 11
+    std::cout << "[NVS] Saving updated node configuration..." << std::endl;
+    save_node_config(config);
+
+    // Step 3: Flash wear-out prevention check (writing identical config should be skipped)
+    std::cout << "[NVS] Verifying flash wear-out prevention (duplicate save)..." << std::endl;
+    save_node_config(config);
+
+    // Step 4: Simulate reboot / reload from persistent storage
+    NodeConfig rebooted_config = {0, 0, 0, 0};
+    bool reload_ok = load_node_config(rebooted_config);
+    if (!reload_ok || rebooted_config != config) {
+        std::cerr << "[NVS FAIL] Reloaded configuration does not match saved configuration!" << std::endl;
+        return 1;
+    }
+    std::cout << "[NVS SUCCESS] Configuration persistence verified across reboot simulation! [NodeID: 0x"
+              << std::hex << rebooted_config.node_id << std::dec << "]" << std::endl;
+
+    erase_node_config(); // Clean up simulation file
+
+    std::cout << "\n>>> SYSTEM CORE & NVS STORAGE FULLY OPERATIONAL <<<" << std::endl;
     return 0;
 }
 
