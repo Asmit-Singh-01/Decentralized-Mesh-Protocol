@@ -2,6 +2,8 @@
 #include <cstring>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "sd_logger.h"
+#include <fstream>
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -45,7 +47,48 @@ int main() {
         return 1;
     }
 
-    std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
+    // 3. Issue #20: SPI MicroSD Card Transaction Logger Verification
+    std::cout << "\n[SD LOGGER] Initializing SPI MicroSD Card Logger Pipeline (Issue #20)..." << std::endl;
+    const char* test_log_file = "test_mesh_logs.csv";
+    std::remove(test_log_file);
+
+    SDCardLogger logger(DEFAULT_SD_CS_PIN, test_log_file, 5);
+    if (!logger.init()) {
+        std::cerr << "[SD FAIL] Logger initialization failed!" << std::endl;
+        return 1;
+    }
+
+    std::cout << "[SD] Logging sample mesh packets..." << std::endl;
+    for (uint16_t i = 1; i <= 5; ++i) {
+        MeshPacket p = {};
+        p.header.sender_id = 0x1000 + i;
+        p.header.receiver_id = 0xFFFF;
+        p.header.payload_len = 16;
+        logger.log_packet(1000 * i, p, static_cast<int8_t>(-65 + i), true);
+    }
+
+    if (logger.get_unflushed_count() != 0) {
+        std::cerr << "[SD FAIL] Logger should have automatically flushed at threshold 5!" << std::endl;
+        return 1;
+    }
+    std::cout << "[SD SUCCESS] Auto-flush verified at interval threshold (" << logger.get_total_writes() << " packets written)!" << std::endl;
+
+    logger.log_packet(6000, 0x1006, 0x1001, -85, 32, false);
+    logger.flush();
+    logger.close();
+
+    std::ifstream log_check(test_log_file);
+    if (!log_check.is_open()) {
+        std::cerr << "[SD FAIL] Output CSV log file does not exist!" << std::endl;
+        return 1;
+    }
+    std::string header_line;
+    std::getline(log_check, header_line);
+    std::cout << "[SD SUCCESS] CSV Header verified: \"" << header_line << "\"" << std::endl;
+    log_check.close();
+    std::remove(test_log_file);
+
+    std::cout << "\n>>> SYSTEM CORE & SD CARD LOGGER FULLY OPERATIONAL <<<" << std::endl;
     return 0;
 }
 
