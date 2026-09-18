@@ -2,6 +2,8 @@
 #include <cstring>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "battery_monitor.h"
+#include "mesh_node.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -45,7 +47,43 @@ int main() {
         return 1;
     }
 
-    std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
+    // 3. Issue #16: Battery Monitoring & Low-Battery Emergency Alert Verification
+    std::cout << "\n[BATTERY] Initializing Battery Monitoring Task (Issue #16)..." << std::endl;
+    MeshNode mesh_node(0x1001);
+    mesh_node.init();
+    BatteryMonitor batt_mon(DEFAULT_BATTERY_PIN, 5);
+
+    // Test nominal voltage (4.1V) - should NOT trigger alert
+    batt_mon.set_simulated_voltage(4.1f);
+    for (int i = 0; i < 5; ++i) {
+        batt_mon.sample_voltage();
+    }
+    std::cout << "[BATTERY] Nominal smoothed voltage: " << batt_mon.get_smoothed_voltage() << "V (Low power: " << (batt_mon.is_low_power() ? "YES" : "NO") << ")" << std::endl;
+    if (batt_mon.is_low_power()) {
+        std::cerr << "[BATTERY FAIL] Nominal voltage falsely triggered low-power mode!" << std::endl;
+        return 1;
+    }
+
+    // Test low voltage drop (3.25V) - triggers smoothed alert
+    std::cout << "[BATTERY] Simulating voltage drop to 3.25V..." << std::endl;
+    batt_mon.set_simulated_voltage(3.25f);
+    for (int i = 0; i < 5; ++i) {
+        batt_mon.sample_voltage();
+    }
+
+    if (!batt_mon.is_low_power()) {
+        std::cerr << "[BATTERY FAIL] Low battery was not detected!" << std::endl;
+        return 1;
+    }
+
+    bool alerted = batt_mon.check_and_alert(mesh_node);
+    if (!alerted) {
+        std::cerr << "[BATTERY FAIL] Low battery warning packet was not broadcasted!" << std::endl;
+        return 1;
+    }
+    std::cout << "[BATTERY SUCCESS] Low battery emergency broadcast successfully triggered at " << batt_mon.get_smoothed_voltage() << "V!" << std::endl;
+
+    std::cout << "\n>>> SYSTEM CORE & BATTERY MONITOR FULLY OPERATIONAL <<<" << std::endl;
     return 0;
 }
 
