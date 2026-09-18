@@ -11,18 +11,24 @@ struct PeerInfo {
     uint8_t hop_count;
 };
 
+class IRadioDriver;
+
 class MeshNode {
 private:
     uint16_t node_id;
     uint16_t current_seq;
     std::unordered_map<uint16_t, PeerInfo> routing_table;
     std::vector<uint16_t> seen_packets;
+    IRadioDriver* radio_driver = nullptr;
 
     bool is_duplicate(uint16_t seq);
     void update_peer(uint16_t sender_id, int8_t rssi, uint8_t hops);
 
 public:
-    MeshNode(uint16_t id);
+    MeshNode(uint16_t id, IRadioDriver* driver = nullptr);
+    
+    void set_radio_driver(IRadioDriver* driver);
+    IRadioDriver* get_radio_driver() const;
     
     void init();
     void handle_received_packet(const uint8_t* raw_data, size_t len, int8_t rssi);

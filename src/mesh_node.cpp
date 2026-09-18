@@ -1,8 +1,18 @@
 #include "mesh_node.h"
+#include "radio_driver.h"
 #include <cstring>
 #include <algorithm>
 
-MeshNode::MeshNode(uint16_t id) : node_id(id), current_seq(0) {}
+MeshNode::MeshNode(uint16_t id, IRadioDriver* driver) 
+    : node_id(id), current_seq(0), radio_driver(driver) {}
+
+void MeshNode::set_radio_driver(IRadioDriver* driver) {
+    radio_driver = driver;
+}
+
+IRadioDriver* MeshNode::get_radio_driver() const {
+    return radio_driver;
+}
 
 void MeshNode::init() {
     routing_table.clear();
@@ -60,6 +70,14 @@ bool MeshNode::broadcast_payload(PacketType type, const uint8_t* data, uint8_t l
         std::memcpy(packet.payload, data, len);
     }
 
+    if (radio_driver) {
+        uint8_t buffer[sizeof(PacketHeader) + MAX_PAYLOAD_SIZE + sizeof(uint16_t)];
+        size_t out_len = 0;
+        if (serialize_packet(packet, buffer, out_len)) {
+            radio_driver->send_bytes(nullptr, buffer, out_len);
+        }
+    }
+
     return true;
 }
 
@@ -77,6 +95,15 @@ bool MeshNode::send_to_node(uint16_t target_id, PacketType type, const uint8_t* 
 
     if (data && len > 0) {
         std::memcpy(packet.payload, data, len);
+    }
+
+    if (radio_driver) {
+        uint8_t buffer[sizeof(PacketHeader) + MAX_PAYLOAD_SIZE + sizeof(uint16_t)];
+        size_t out_len = 0;
+        if (serialize_packet(packet, buffer, out_len)) {
+            uint8_t target_mac[6] = {0x00, 0x00, static_cast<uint8_t>(target_id >> 8), static_cast<uint8_t>(target_id & 0xFF), 0x00, 0x00};
+            radio_driver->send_bytes(target_mac, buffer, out_len);
+        }
     }
 
     return true;
