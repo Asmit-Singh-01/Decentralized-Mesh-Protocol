@@ -2,6 +2,7 @@
 #include <cstring>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "power_manager.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -45,7 +46,34 @@ int main() {
         return 1;
     }
 
-    std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
+    // 3. Issue #7: ESP32 Light-Sleep Power Management Duty-Cycle Verification
+    std::cout << "\n[POWER] Initializing ESP32 Light-Sleep Power Manager Pipeline (Issue #7)..." << std::endl;
+    MeshNode mesh_node(0x1001);
+    mesh_node.init();
+    PowerManager power_mgr(true, 500);
+
+    uint32_t short_window = power_mgr.calculate_sleep_window(1000, 1300, 50);
+    std::cout << "[POWER] Calculated short window: " << short_window << " ms (Threshold: 500 ms)" << std::endl;
+    bool slept_short = power_mgr.enter_light_sleep(short_window, &mesh_node);
+    if (slept_short) {
+        std::cerr << "[POWER FAIL] Sleep should not occur when window is below 500ms threshold!" << std::endl;
+        return 1;
+    }
+
+    uint32_t beacon_interval_window = power_mgr.calculate_sleep_window(2000, 3550, 50);
+    std::cout << "[POWER] Calculated valid sleep window: " << beacon_interval_window << " ms" << std::endl;
+    bool slept_valid = power_mgr.enter_light_sleep(beacon_interval_window, &mesh_node);
+    if (!slept_valid) {
+        std::cerr << "[POWER FAIL] Light sleep should execute during valid idle window!" << std::endl;
+        return 1;
+    }
+    if (power_mgr.get_total_sleep_cycles() != 1 || power_mgr.get_total_sleep_time_ms() != beacon_interval_window) {
+        std::cerr << "[POWER FAIL] Sleep telemetry metrics mismatch!" << std::endl;
+        return 1;
+    }
+    std::cout << "[POWER SUCCESS] Light-sleep duty cycling verified with seamless wake recovery!" << std::endl;
+
+    std::cout << "\n>>> SYSTEM CORE & POWER MANAGER FULLY OPERATIONAL <<<" << std::endl;
     return 0;
 }
 
