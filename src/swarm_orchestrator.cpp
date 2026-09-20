@@ -57,6 +57,11 @@ void SwarmOrchestrator::execute_orchestration_cycle(uint32_t current_time_ms) {
     );
 }
 
+void SwarmOrchestrator::clear_tasks() {
+    task_queue.clear();
+}
+
 const std::vector<SwarmTask>& SwarmOrchestrator::get_tasks() const {
     return task_queue;
 }
+

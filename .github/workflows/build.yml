@@ -22,9 +22,14 @@ jobs:
       - name: Configure CMake
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build Executable
+      - name: Build All Targets
         run: cmake --build build --config Release
 
       - name: Execute Swarm Simulation Test
         run: ./build/mesh_node_sim
-        
+
+      - name: Run Automated Protocol Test Suite
+        run: ./build/mesh_protocol_tests
+
+      - name: Run Tests via CTest
+        run: ctest --test-dir build --output-on-failure

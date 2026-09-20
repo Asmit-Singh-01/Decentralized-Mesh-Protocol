@@ -55,6 +55,11 @@ void RoutingEngine::prune_stale_routes(uint32_t current_time, uint32_t timeout_m
     }
 }
 
+void RoutingEngine::clear_table() {
+    routing_table.clear();
+}
+
 const std::unordered_map<uint16_t, RouteEntry>& RoutingEngine::get_table() const {
     return routing_table;
 }
+
