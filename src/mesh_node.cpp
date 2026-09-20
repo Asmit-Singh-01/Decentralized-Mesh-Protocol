@@ -1,37 +1,91 @@
 #include "mesh_node.h"
 #include <cstring>
-#include <algorithm>
+#include <iostream>
 
-MeshNode::MeshNode(uint16_t id) : node_id(id), current_seq(0) {}
+MeshNode::MeshNode(uint16_t id)
+    : node_id(id),
+      current_seq(0),
+      last_heartbeat_ms(0),
+      heartbeat_started(false) {}
 
 void MeshNode::init() {
     routing_table.clear();
     seen_packets.clear();
+
+    current_seq = 0;
+    last_heartbeat_ms = 0;
+    heartbeat_started = false;
 }
 
 bool MeshNode::is_duplicate(uint16_t seq) {
     if (seen_packets.find(seq) != seen_packets.end()) {
         return true;
     }
-    
-    // Maintain fixed window size for sequence history to prevent memory leaks
+
+    // Maintain fixed window size for sequence history.
     if (seen_packets.size() >= 100) {
         seen_packets.erase(seen_packets.begin());
     }
+
     seen_packets.insert(seq);
     return false;
 }
 
-void MeshNode::update_peer(uint16_t sender_id, int8_t rssi, uint8_t hops, uint32_t current_time_ms) {
+void MeshNode::update_peer(
+    uint16_t sender_id,
+    int8_t rssi,
+    uint8_t hops,
+    uint32_t current_time_ms
+) {
     PeerInfo& peer = routing_table[sender_id];
+
     peer.node_id = sender_id;
     peer.rssi = rssi;
     peer.hop_count = hops;
     peer.last_seen_ms = current_time_ms;
 }
 
-void MeshNode::handle_received_packet(const uint8_t* raw_data, size_t len, int8_t rssi, uint32_t current_time_ms) {
+bool MeshNode::service(uint32_t current_time_ms) {
+    bool heartbeat_emitted = false;
+
+    /*
+     * First invocation only initializes the scheduler.
+     * This avoids sending a heartbeat immediately during startup.
+     */
+    if (!heartbeat_started) {
+        last_heartbeat_ms = current_time_ms;
+        heartbeat_started = true;
+    } else {
+        /*
+         * Unsigned subtraction intentionally handles uint32_t
+         * timer wrap-around.
+         */
+        uint32_t elapsed = current_time_ms - last_heartbeat_ms;
+
+        if (elapsed >= HEARTBEAT_INTERVAL_MS) {
+            heartbeat_emitted =
+                broadcast_payload(PacketType::HEARTBEAT, nullptr, 0);
+
+            if (heartbeat_emitted) {
+                last_heartbeat_ms = current_time_ms;
+            }
+        }
+    }
+
+    // Remove peers that have not been heard from recently.
+    cleanup_dead_peers(PEER_TIMEOUT_MS, current_time_ms);
+
+    return heartbeat_emitted;
+}
+
+void MeshNode::handle_received_packet(
+    const uint8_t* raw_data,
+    size_t len,
+    int8_t rssi,
+    uint32_t current_time_ms
+) {
     MeshPacket packet;
+
     if (!deserialize_packet(raw_data, len, packet)) {
         return;
     }
@@ -40,20 +94,40 @@ void MeshNode::handle_received_packet(const uint8_t* raw_data, size_t len, int8_
         return;
     }
 
-    update_peer(packet.header.sender_id, rssi, packet.header.ttl, current_time_ms);
+    /*
+     * Every valid packet proves that the sender is alive.
+     * This includes HEARTBEAT packets.
+     */
+    update_peer(
+        packet.header.sender_id,
+        rssi,
+        packet.header.ttl,
+        current_time_ms
+    );
 
-    if (packet.header.receiver_id == node_id || packet.header.receiver_id == 0xFFFF) {
-        // Core payload processing hook for swarm intelligence
+    if (packet.header.receiver_id == node_id ||
+        packet.header.receiver_id == 0xFFFF) {
+
+        // Core payload processing hook for swarm intelligence.
+
     } else if (packet.header.ttl > 1) {
-        // Dynamic multi-hop mesh forwarding (decrement TTL and relay)
+
+        // Dynamic multi-hop mesh forwarding.
         packet.header.ttl--;
     }
 }
 
-bool MeshNode::broadcast_payload(PacketType type, const uint8_t* data, uint8_t len) {
-    if (len > MAX_PAYLOAD_SIZE) return false;
+bool MeshNode::broadcast_payload(
+    PacketType type,
+    const uint8_t* data,
+    uint8_t len
+) {
+    if (len > MAX_PAYLOAD_SIZE) {
+        return false;
+    }
 
-    MeshPacket packet;
+    MeshPacket packet{};
+
     packet.header.magic = PROTOCOL_MAGIC_BYTE;
     packet.header.type = static_cast<uint8_t>(type);
     packet.header.sender_id = node_id;
@@ -66,13 +140,25 @@ bool MeshNode::broadcast_payload(PacketType type, const uint8_t* data, uint8_t l
         std::memcpy(packet.payload, data, len);
     }
 
+    /*
+     * The current repository's broadcast API is simulation-oriented.
+     * A radio transport can serialize/transmit this packet later.
+     */
     return true;
 }
 
-bool MeshNode::send_to_node(uint16_t target_id, PacketType type, const uint8_t* data, uint8_t len) {
-    if (len > MAX_PAYLOAD_SIZE) return false;
+bool MeshNode::send_to_node(
+    uint16_t target_id,
+    PacketType type,
+    const uint8_t* data,
+    uint8_t len
+) {
+    if (len > MAX_PAYLOAD_SIZE) {
+        return false;
+    }
 
-    MeshPacket packet;
+    MeshPacket packet{};
+
     packet.header.magic = PROTOCOL_MAGIC_BYTE;
     packet.header.type = static_cast<uint8_t>(type);
     packet.header.sender_id = node_id;
@@ -88,9 +174,27 @@ bool MeshNode::send_to_node(uint16_t target_id, PacketType type, const uint8_t* 
     return true;
 }
 
-void MeshNode::cleanup_dead_peers(uint32_t timeout_ms, uint32_t current_time_ms) {
-    for (auto it = routing_table.begin(); it != routing_table.end();) {
-        if (current_time_ms - it->second.last_seen_ms > timeout_ms) {
+void MeshNode::cleanup_dead_peers(
+    uint32_t timeout_ms,
+    uint32_t current_time_ms
+) {
+    for (auto it = routing_table.begin();
+         it != routing_table.end();) {
+
+        /*
+         * Unsigned subtraction is wrap-around safe for normal
+         * embedded millisecond timers.
+         */
+        uint32_t elapsed =
+            current_time_ms - it->second.last_seen_ms;
+
+        if (elapsed > timeout_ms) {
+            std::cout
+                << "[MESH SWARM] Node ID "
+                << it->second.node_id
+                << " timed out and purged. Routing table updated."
+                << std::endl;
+
             it = routing_table.erase(it);
         } else {
             ++it;
@@ -98,6 +202,7 @@ void MeshNode::cleanup_dead_peers(uint32_t timeout_ms, uint32_t current_time_ms)
     }
 }
 
-const std::unordered_map<uint16_t, PeerInfo>& MeshNode::get_routing_table() const {
+const std::unordered_map<uint16_t, PeerInfo>&
+MeshNode::get_routing_table() const {
     return routing_table;
 }
