@@ -1,5 +1,6 @@
 #include "mesh_node.h"
 #include <cstring>
+#include <iostream>
 
 MeshNode::MeshNode(uint16_t id)
     : node_id(id),
@@ -188,6 +189,12 @@ void MeshNode::cleanup_dead_peers(
             current_time_ms - it->second.last_seen_ms;
 
         if (elapsed > timeout_ms) {
+            std::cout
+                << "[MESH SWARM] Node ID "
+                << it->second.node_id
+                << " timed out and purged. Routing table updated."
+                << std::endl;
+
             it = routing_table.erase(it);
         } else {
             ++it;
