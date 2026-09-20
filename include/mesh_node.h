@@ -1,6 +1,8 @@
 #pragma once
 
 #include "packet_format.h"
+#include "sd_logger.h"
+
 #include <cstdint>
 #include <cstddef>
 #include <unordered_map>
@@ -17,20 +19,56 @@ class MeshNode {
 private:
     uint16_t node_id;
     uint16_t current_seq;
+
     std::unordered_map<uint16_t, PeerInfo> routing_table;
     std::unordered_set<uint16_t> seen_packets;
 
+    SDLogger sd_logger;
+
     bool is_duplicate(uint16_t seq);
-    void update_peer(uint16_t sender_id, int8_t rssi, uint8_t hops, uint32_t current_time_ms);
+
+    void update_peer(
+        uint16_t sender_id,
+        int8_t rssi,
+        uint8_t hops,
+        uint32_t current_time_ms
+    );
 
 public:
-    MeshNode(uint16_t id);
-    
+    explicit MeshNode(uint16_t id);
+
     void init();
-    void handle_received_packet(const uint8_t* raw_data, size_t len, int8_t rssi, uint32_t current_time_ms = 0);
-    bool broadcast_payload(PacketType type, const uint8_t* data, uint8_t len);
-    bool send_to_node(uint16_t target_id, PacketType type, const uint8_t* data, uint8_t len);
-    
-    void cleanup_dead_peers(uint32_t timeout_ms, uint32_t current_time_ms);
-    const std::unordered_map<uint16_t, PeerInfo>& get_routing_table() const;
+
+    void handle_received_packet(
+        const uint8_t* raw_data,
+        size_t len,
+        int8_t rssi,
+        uint32_t current_time_ms = 0
+    );
+
+    bool broadcast_payload(
+        PacketType type,
+        const uint8_t* data,
+        uint8_t len
+    );
+
+    bool send_to_node(
+        uint16_t target_id,
+        PacketType type,
+        const uint8_t* data,
+        uint8_t len
+    );
+
+    void cleanup_dead_peers(
+        uint32_t timeout_ms,
+        uint32_t current_time_ms
+    );
+
+    const std::unordered_map<uint16_t, PeerInfo>&
+    get_routing_table() const;
+
+    // Services deferred SD logging without blocking packet reception.
+    void service_logging();
+
+    const SDLogger& get_sd_logger() const;
 };
