@@ -17,6 +17,7 @@ class MeshNode {
 private:
     uint16_t node_id;
     uint16_t current_seq;
+uint32_t last_beacon_ms;
     std::unordered_map<uint16_t, PeerInfo> routing_table;
     std::unordered_set<uint16_t> seen_packets;
 
@@ -25,6 +26,7 @@ private:
 
 public:
     MeshNode(uint16_t id);
+void power_save_check(uint32_t current_time_ms);
     
     void init();
     void handle_received_packet(const uint8_t* raw_data, size_t len, int8_t rssi, uint32_t current_time_ms = 0);
