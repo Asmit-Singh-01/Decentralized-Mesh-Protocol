@@ -5,6 +5,7 @@
 #include "security_engine.h"
 #include "packet_format.h"
 #include "mesh_node.h"
+#include "hal/mock_radio_driver.h"
 
 void print_hex(const char* label, const uint8_t* data, size_t len) {
     std::cout << label << ": ";
@@ -20,7 +21,8 @@ int main() {
     std::cout << "==================================================" << std::endl;
 
     // 1. Mesh Node Initialization
-    MeshNode local_node(0x1001);
+    MockRadioDriver radio_driver;
+MeshNode local_node(0x1001, &radio_driver);
     local_node.init();
     std::cout << "[SYSTEM] Node 0x1001 initialized successfully." << std::endl;
 

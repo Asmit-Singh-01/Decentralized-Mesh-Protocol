@@ -6,7 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include_directories(include)
 
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES
+    "src/*.cpp"
+    "src/hal/*.cpp"
+)
 
 add_executable(mesh_node_sim ${SOURCES})
 
