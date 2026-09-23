@@ -104,4 +104,67 @@ cmake --build build
 
 # 4. Execute the Swarm Protocol Test Harness
 ./build/mesh_node_sim
+```
+
+---
+
+### Option B: ESP32 Setup with PlatformIO
+
+#### 1. Install PlatformIO
+
+Install Visual Studio Code and add the PlatformIO IDE extension.
+
+#### 2. Open the project
+
+Open the `Decentralized-Mesh-Protocol` folder in Visual Studio Code.
+
+PlatformIO will detect the `platformio.ini` configuration automatically.
+
+#### 3. Build the ESP32 firmware
+
+Open the PlatformIO terminal and run:
+
+```bash
+pio run
+```
+
+#### 4. Upload the firmware to ESP32
+
+Connect your ESP32 board to your computer using USB.
+
+Then run:
+
+```bash
+pio run --target upload
+```
+
+#### 5. Monitor the ESP32
+
+To view serial output from the ESP32, run:
+
+```bash
+pio device monitor
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow the project's contribution guidelines before making changes.
+
+1. Check the available GitHub issues and choose an issue that is assigned to you.
+2. Fork the repository and clone your fork locally.
+3. Create a new branch for your contribution.
+4. Make your changes and test them locally.
+5. Commit your changes with a clear commit message.
+6. Push your branch to your fork.
+7. Open a Pull Request targeting the `main` branch.
+
+For detailed contribution instructions, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
 
