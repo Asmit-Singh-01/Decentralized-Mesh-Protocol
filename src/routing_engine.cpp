@@ -58,3 +58,43 @@ void RoutingEngine::prune_stale_routes(uint32_t current_time, uint32_t timeout_m
 const std::unordered_map<uint16_t, RouteEntry>& RoutingEngine::get_table() const {
     return routing_table;
 }
+#include <iostream>
+#include <vector>
+#include "../include/routing_engine.h"
+
+std::vector<NeighborNode> active_neighbors;
+
+// 1. Send periodic heartbeat broadcast
+void check_and_send_heartbeat(uint32_t current_millis) {
+    static uint32_t last_heartbeat_ms = 0;
+    if (current_millis - last_heartbeat_ms >= HEARTBEAT_INTERVAL_MS) {
+        last_heartbeat_ms = current_millis;
+        // Logic to transmit lightweight HEARTBEAT packet
+    }
+}
+
+// 2. Update node timestamp on packet receipt
+void update_neighbor_timestamp(uint8_t node_id, uint32_t current_millis) {
+    for (auto& neighbor : active_neighbors) {
+        if (neighbor.node_id == node_id) {
+            neighbor.last_seen_ms = current_millis;
+            neighbor.is_active = true;
+            return;
+        }
+    }
+    active_neighbors.push_back({node_id, current_millis, true});
+}
+
+// 3. Background cleanup function to purge inactive nodes
+void purge_stale_nodes(uint32_t current_millis) {
+    auto it = active_neighbors.begin();
+    while (it != active_neighbors.end()) {
+        if (current_millis - it->last_seen_ms > TIMEOUT_THRESHOLD_MS) {
+            std::cout << "[MESH SWARM] Node ID " << static_cast<int>(it->node_id) 
+                      << " timed out and purged. Routing table updated." << std::endl;
+            it = active_neighbors.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
