@@ -12,7 +12,8 @@ enum class PacketType : uint8_t {
     ROUTING_TABLE = 0x03,
     TELEMETRY_SWARM = 0x04,
     TASK_ALLOCATION = 0x05,
-    ACK = 0x06
+    ACK = 0x06,
+STATUS_BATTERY_LOW = 0x07
 };
 
 #pragma pack(push, 1)
