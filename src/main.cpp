@@ -5,6 +5,25 @@
 #include "security_engine.h"
 #include "packet_format.h"
 #include "mesh_node.h"
+#include "esp_now_driver.h"
+
+MeshNode* active_node = nullptr;
+
+void on_mesh_packet_received(
+    const uint8_t* src_mac,
+    const uint8_t* data,
+    size_t len,
+    int8_t rssi
+) {
+    if (active_node != nullptr) {
+        active_node->handle_received_packet(
+            src_mac,
+            data,
+            len,
+            rssi
+        );
+    }
+}
 
 void print_hex(const char* label, const uint8_t* data, size_t len) {
     std::cout << label << ": ";
@@ -20,9 +39,20 @@ int main() {
     std::cout << "==================================================" << std::endl;
 
     // 1. Mesh Node Initialization
-    MeshNode local_node(0x1001);
-    local_node.init();
-    std::cout << "[SYSTEM] Node 0x1001 initialized successfully." << std::endl;
+    EspNowDriver radio_driver;
+
+if (!radio_driver.init()) {
+    std::cerr << "[ERROR] Radio driver initialization failed!" << std::endl;
+    return 1;
+}
+
+MeshNode local_node(0x1001, radio_driver);
+local_node.init();
+
+active_node = &local_node;
+radio_driver.set_rx_callback(on_mesh_packet_received);
+
+std::cout << "[SYSTEM] Node 0x1001 initialized successfully." << std::endl;
 
     // 2. Swarm Orchestrator Initialization
     SwarmOrchestrator orchestrator(0x1001);
