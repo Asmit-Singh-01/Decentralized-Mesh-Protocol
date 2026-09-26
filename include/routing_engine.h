@@ -13,6 +13,10 @@ struct RouteEntry {
 
     uint16_t backup_hop_id = 0;
     bool has_backup_hop = false;
+
+    uint8_t backup_hop_count = 0;
+    int8_t backup_link_quality_rssi = 0;
+    uint32_t backup_last_updated_ms = 0;
 };
 
 class RoutingEngine {
