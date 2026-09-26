@@ -6,10 +6,13 @@
 
 struct RouteEntry {
     uint16_t destination_id;
-    uint16_t next_hop_id;
+    uint16_t next_hop_id;  // Primary next hop
     uint8_t hop_count;
     int8_t link_quality_rssi;
     uint32_t last_updated_ms;
+
+    uint16_t backup_hop_id = 0;
+    bool has_backup_hop = false;
 };
 
 class RoutingEngine {
