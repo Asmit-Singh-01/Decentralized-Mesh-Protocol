@@ -1,6 +1,7 @@
 #pragma once
 
 #include "packet_format.h"
+#include "radio_driver.h"
 #include <cstdint>
 #include <cstddef>
 #include <unordered_map>
