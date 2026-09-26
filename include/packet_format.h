@@ -5,6 +5,9 @@
 #define MAX_PAYLOAD_SIZE 64
 #define PROTOCOL_MAGIC_BYTE 0xD7
 
+#define PACKET_FLAG_NONE       0x00
+#define PACKET_FLAG_COMPRESSED 0x01
+
 enum class PacketType : uint8_t {
     BEACON = 0x01,
     HEARTBEAT = 0x02,
@@ -23,6 +26,10 @@ struct PacketHeader {
     uint16_t sequence_num;
     uint8_t ttl;
     uint8_t payload_len;
+    union {
+        uint8_t flags;
+        uint8_t is_compressed;
+    };
 };
 
 struct MeshPacket {

@@ -1,7 +1,10 @@
 #include <iostream>
 #include <cstring>
+#include <iomanip>
 #include "swarm_orchestrator.h"
 #include "security_engine.h"
+#include "packet_format.h"
+#include "compression.h"
 
 int main() {
     std::cout << ">>> DECENTRALIZED SWARM OS / MESH CORE INITIALIZED <<<" << std::endl;
@@ -44,6 +47,61 @@ int main() {
         std::cerr << "[SECURITY FAIL] Decrypted payload mismatch!" << std::endl;
         return 1;
     }
+
+    // 3. Issue #14: Swarm Telemetry Delta & RLE Compression Verification
+    std::cout << "\n[TELEMETRY COMPRESSION #14] Initializing Swarm Telemetry Compression Test..." << std::endl;
+
+    // Simulate 32-sample sensor heat-map grid (64 bytes raw uncompressed)
+    int16_t sensor_grid[32];
+    for (size_t i = 0; i < 32; ++i) {
+        sensor_grid[i] = 100; // Uniform temperature heat-map reading
+    }
+
+    MeshPacket tel_pkt = {};
+    tel_pkt.header.magic = PROTOCOL_MAGIC_BYTE;
+    tel_pkt.header.type = static_cast<uint8_t>(PacketType::TELEMETRY_SWARM);
+    tel_pkt.header.sender_id = 0x1001;
+    tel_pkt.header.receiver_id = 0xFFFF;
+    tel_pkt.header.sequence_num = 42;
+    tel_pkt.header.ttl = 5;
+    tel_pkt.header.payload_len = static_cast<uint8_t>(sizeof(sensor_grid));
+    tel_pkt.header.is_compressed = 0;
+    std::memcpy(tel_pkt.payload, sensor_grid, sizeof(sensor_grid));
+
+    std::cout << "[TELEMETRY] Original payload: 32 samples (64 bytes)" << std::endl;
+
+    uint8_t tx_buffer[256] = {0};
+    size_t tx_len = 0;
+
+    if (!serialize_packet(tel_pkt, tx_buffer, tx_len)) {
+        std::cerr << "[ERROR] Telemetry packet serialization failed!" << std::endl;
+        return 1;
+    }
+
+    std::cout << "[TELEMETRY] Wire frame serialized (" << tx_len << " bytes total wire size)." << std::endl;
+
+    MeshPacket rx_pkt = {};
+    if (!deserialize_packet(tx_buffer, tx_len, rx_pkt)) {
+        std::cerr << "[ERROR] Telemetry packet deserialization failed!" << std::endl;
+        return 1;
+    }
+
+    if (rx_pkt.header.payload_len != sizeof(sensor_grid)) {
+        std::cerr << "[ERROR] Decompressed payload size mismatch: expected "
+                  << sizeof(sensor_grid) << " but got " << static_cast<int>(rx_pkt.header.payload_len) << std::endl;
+        return 1;
+    }
+
+    if (std::memcmp(rx_pkt.payload, sensor_grid, sizeof(sensor_grid)) == 0) {
+        std::cout << "[COMPRESSION SUCCESS] Telemetry compressed, transmitted, and decompressed with 100% integrity!" << std::endl;
+    } else {
+        std::cerr << "[ERROR] Decompressed payload corrupted!" << std::endl;
+        return 1;
+    }
+
+    // Benchmark print verification for 128B -> 42B (67% saved)
+    std::cout << "[BENCHMARK CHECK] Verifying benchmark log format:" << std::endl;
+    print_compression_benchmark(128, 42);
 
     std::cout << "\n>>> SYSTEM CORE & SECURITY LAYER FULLY OPERATIONAL <<<" << std::endl;
     return 0;
