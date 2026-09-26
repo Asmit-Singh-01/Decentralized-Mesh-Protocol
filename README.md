@@ -105,3 +105,7 @@ cmake --build build
 # 4. Execute the Swarm Protocol Test Harness
 ./build/mesh_node_sim
 
+
+## Simulation Guide
+
+For instructions on building, running, and troubleshooting the native mesh node simulator, see the [Native Mesh Node Simulation Guide](docs/simulation_guide.md).
