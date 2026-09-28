@@ -24,8 +24,8 @@ struct PacketHeader {
     uint16_t sequence_num;
     uint8_t ttl;
     uint8_t payload_len;
+    uint8_t is_compressed;
 };
-
 struct MeshPacket {
     PacketHeader header;
     uint8_t payload[MAX_PAYLOAD_SIZE];
@@ -36,3 +36,8 @@ struct MeshPacket {
 uint16_t calculate_crc16(const uint8_t* data, size_t length);
 bool serialize_packet(const MeshPacket& packet, uint8_t* buffer, size_t& out_len);
 bool deserialize_packet(const uint8_t* buffer, size_t length, MeshPacket& out_packet);
+bool create_telemetry_packet(
+    const int16_t* telemetry,
+    size_t count,
+    MeshPacket& packet
+);
