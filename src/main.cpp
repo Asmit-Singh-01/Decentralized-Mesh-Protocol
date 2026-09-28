@@ -44,6 +44,7 @@ int main() {
     tx_packet.header.receiver_id = 0x1002;
     tx_packet.header.sequence_num = 1;
     tx_packet.header.ttl = 5;
+    tx_packet.header.is_compressed = 0;
     
     const char* dummy_data = "PING_PAYLOAD";
     tx_packet.header.payload_len = std::strlen(dummy_data);

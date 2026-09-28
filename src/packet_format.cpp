@@ -1,5 +1,8 @@
 #include "packet_format.h"
+#include "compression.h"
+
 #include <cstring>
+#include <iostream>
 
 // Pre-computed CRC16-CCITT Lookup Table for high-performance zero-delay calculation
 static const uint16_t crc16_table[256] = {
@@ -38,16 +41,25 @@ static const uint16_t crc16_table[256] = {
 };
 
 uint16_t calculate_crc16(const uint8_t* data, size_t length) {
-    if (!data || length == 0) return 0;
-    
-    uint16_t crc = 0xFFFF;
-    for (size_t i = 0; i < length; ++i) {
-        crc = (crc << 8) ^ crc16_table[((crc >> 8) ^ data[i]) & 0xFF];
+    if (!data || length == 0) {
+        return 0;
     }
+
+    uint16_t crc = 0xFFFF;
+
+    for (size_t i = 0; i < length; ++i) {
+        crc = (crc << 8) ^
+              crc16_table[((crc >> 8) ^ data[i]) & 0xFF];
+    }
+
     return crc;
 }
 
-bool serialize_packet(const MeshPacket& packet, uint8_t* buffer, size_t& out_len) {
+bool serialize_packet(
+    const MeshPacket& packet,
+    uint8_t* buffer,
+    size_t& out_len
+) {
     if (!buffer || packet.header.payload_len > MAX_PAYLOAD_SIZE) {
         return false;
     }
@@ -55,49 +67,218 @@ bool serialize_packet(const MeshPacket& packet, uint8_t* buffer, size_t& out_len
     size_t header_size = sizeof(PacketHeader);
     size_t payload_size = packet.header.payload_len;
 
-    std::memcpy(buffer, &packet.header, header_size);
-    if (payload_size > 0 && packet.payload) {
-        std::memcpy(buffer + header_size, packet.payload, payload_size);
+    std::memcpy(
+        buffer,
+        &packet.header,
+        header_size
+    );
+
+    if (payload_size > 0) {
+        std::memcpy(
+            buffer + header_size,
+            packet.payload,
+            payload_size
+        );
     }
 
-    uint16_t crc = calculate_crc16(buffer, header_size + payload_size);
-    std::memcpy(buffer + header_size + payload_size, &crc, sizeof(uint16_t));
+    uint16_t crc =
+        calculate_crc16(
+            buffer,
+            header_size + payload_size
+        );
 
-    out_len = header_size + payload_size + sizeof(uint16_t);
+    std::memcpy(
+        buffer + header_size + payload_size,
+        &crc,
+        sizeof(uint16_t)
+    );
+
+    out_len =
+        header_size +
+        payload_size +
+        sizeof(uint16_t);
+
     return true;
 }
 
-bool deserialize_packet(const uint8_t* buffer, size_t length, MeshPacket& out_packet) {
-    size_t min_size = sizeof(PacketHeader) + sizeof(uint16_t);
+bool deserialize_packet(
+    const uint8_t* buffer,
+    size_t length,
+    MeshPacket& out_packet
+) {
+    size_t min_size =
+        sizeof(PacketHeader) +
+        sizeof(uint16_t);
+
     if (!buffer || length < min_size) {
         return false;
     }
 
     PacketHeader hdr;
-    std::memcpy(&hdr, buffer, sizeof(PacketHeader));
+
+    std::memcpy(
+        &hdr,
+        buffer,
+        sizeof(PacketHeader)
+    );
 
     if (hdr.magic != PROTOCOL_MAGIC_BYTE) {
         return false;
     }
 
-    size_t expected_len = sizeof(PacketHeader) + hdr.payload_len + sizeof(uint16_t);
-    if (length < expected_len || hdr.payload_len > MAX_PAYLOAD_SIZE) {
+    size_t expected_len =
+        sizeof(PacketHeader) +
+        hdr.payload_len +
+        sizeof(uint16_t);
+
+    if (length < expected_len ||
+        hdr.payload_len > MAX_PAYLOAD_SIZE) {
         return false;
     }
 
     uint16_t received_crc = 0;
-    std::memcpy(&received_crc, buffer + sizeof(PacketHeader) + hdr.payload_len, sizeof(uint16_t));
 
-    uint16_t computed_crc = calculate_crc16(buffer, sizeof(PacketHeader) + hdr.payload_len);
+    std::memcpy(
+        &received_crc,
+        buffer + sizeof(PacketHeader) + hdr.payload_len,
+        sizeof(uint16_t)
+    );
+
+    uint16_t computed_crc =
+        calculate_crc16(
+            buffer,
+            sizeof(PacketHeader) + hdr.payload_len
+        );
+
     if (received_crc != computed_crc) {
         return false;
     }
 
     out_packet.header = hdr;
+
     if (hdr.payload_len > 0) {
-        std::memcpy(out_packet.payload, buffer + sizeof(PacketHeader), hdr.payload_len);
+        std::memcpy(
+            out_packet.payload,
+            buffer + sizeof(PacketHeader),
+            hdr.payload_len
+        );
     }
+
     out_packet.crc16 = received_crc;
+
+    return true;
+}
+
+// ============================================================
+// TELEMETRY PACKET CREATION WITH COMPRESSION
+// ============================================================
+
+bool create_telemetry_packet(
+    const int16_t* telemetry,
+    size_t count,
+    MeshPacket& packet
+) {
+    if (!telemetry || count == 0) {
+        return false;
+    }
+
+    // Basic packet header
+    packet.header.magic =
+        PROTOCOL_MAGIC_BYTE;
+
+    packet.header.type =
+        static_cast<uint8_t>(
+            PacketType::TELEMETRY_SWARM
+        );
+
+    packet.header.sender_id = 0x1001;
+    packet.header.receiver_id = 0xFFFF;
+    packet.header.sequence_num = 0;
+    packet.header.ttl = 5;
+
+    // Default to uncompressed.
+    packet.header.is_compressed = 0;
+    packet.header.payload_len = 0;
+
+    // --------------------------------------------------------
+    // Try compression first.
+    // --------------------------------------------------------
+
+    size_t compressed_size =
+        compress_telemetry(
+            telemetry,
+            count,
+            packet.payload,
+            MAX_PAYLOAD_SIZE
+        );
+
+    // Original telemetry size in bytes.
+    size_t original_size =
+        count * sizeof(int16_t);
+
+    // --------------------------------------------------------
+    // Use compressed data only when it actually saves space.
+    // --------------------------------------------------------
+
+    if (compressed_size > 0 &&
+        compressed_size < original_size &&
+        compressed_size <= MAX_PAYLOAD_SIZE) {
+
+        packet.header.payload_len =
+            static_cast<uint8_t>(
+                compressed_size
+            );
+
+        packet.header.is_compressed = 1;
+
+        size_t saved =
+            original_size - compressed_size;
+
+        int percentage =
+            static_cast<int>(
+                (saved * 100) / original_size
+            );
+
+        std::cout
+            << "[MESH COMPRESS] Original: "
+            << original_size
+            << " -> Compressed: "
+            << compressed_size
+            << " ("
+            << percentage
+            << "% saved)"
+            << std::endl;
+
+        return true;
+    }
+
+    // --------------------------------------------------------
+    // Compression was not beneficial.
+    // Fall back to the original telemetry.
+    // --------------------------------------------------------
+
+    if (original_size > MAX_PAYLOAD_SIZE) {
+        return false;
+    }
+
+    std::memcpy(
+        packet.payload,
+        telemetry,
+        original_size
+    );
+
+    packet.header.payload_len =
+        static_cast<uint8_t>(
+            original_size
+        );
+
+    packet.header.is_compressed = 0;
+
+    std::cout
+        << "[MESH COMPRESS] "
+        << "Compression not beneficial; "
+        << "using original payload"
+        << std::endl;
 
     return true;
 }
