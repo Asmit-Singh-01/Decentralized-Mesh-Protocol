@@ -1,4 +1,7 @@
 #include "routing_engine.h"
+#ifndef MESH_MAX_HOPS
+#define MESH_MAX_HOPS 8
+#endif
 #include <algorithm>
 
 RoutingEngine::RoutingEngine(uint16_t node_id) : local_node_id(node_id) {}
@@ -57,4 +60,21 @@ void RoutingEngine::prune_stale_routes(uint32_t current_time, uint32_t timeout_m
 
 const std::unordered_map<uint16_t, RouteEntry>& RoutingEngine::get_table() const {
     return routing_table;
+}
+
+bool RoutingEngine::evaluateHopLimit(uint8_t& hop_count, uint16_t dest_node, uint16_t self_node) {
+    // 1. Packet reached this node: do not forward across the mesh
+    if (dest_node == self_node) {
+        return false;
+    }
+
+    // 2. Advance hop count
+    hop_count++;
+
+    // 3. Drop packet if maximum allowable hops exceeded
+    if (hop_count >= MESH_MAX_HOPS) {
+        return false;
+    }
+
+    return true;
 }
