@@ -4,6 +4,10 @@
 #include <cstdint>
 #include <cstddef>
 
+#ifdef MESH_MAX_HOPS
+#define MESH_MAX_HOPS 8
+#endif
+
 struct RouteEntry {
     uint16_t destination_id;
     uint16_t next_hop_id;
@@ -26,4 +30,5 @@ public:
     void clear_table();
     
     const std::unordered_map<uint16_t, RouteEntry>& get_table() const;
+    static bool evaluateHopLimit(uint8_t& hop_count, uint16_t dest_node, uint16_t self_node);
 };
