@@ -4,6 +4,7 @@
 #include "swarm_orchestrator.h"
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 int main() {
     std::cout << "Starting Swarm Mesh Node Simulation..." << std::endl;
