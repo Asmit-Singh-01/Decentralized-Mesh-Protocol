@@ -1,103 +1,66 @@
 #include "mesh_node.h"
+#include "packet_format.h"
+#include <iostream>
 #include <cstring>
-#include <algorithm>
 
-MeshNode::MeshNode(uint16_t id) : node_id(id), current_seq(0) {}
+MeshNode::MeshNode(uint16_t id) : node_id(id), routing_engine(id), current_seq(0) {}
 
-void MeshNode::init() {
-    routing_table.clear();
-    seen_packets.clear();
+bool MeshNode::init() {
+    std::cout << "Initializing MeshNode with ID: 0x" << std::hex << node_id << std::endl;
+    routing_engine.clear_table();
+    return true;
 }
 
-bool MeshNode::is_duplicate(uint16_t seq) {
-    if (seen_packets.find(seq) != seen_packets.end()) {
+bool MeshNode::send_data(uint16_t target_id, const uint8_t* data, size_t len) {
+    if (!data || len == 0 || len > MAX_PAYLOAD_SIZE) {
+        return false;
+    }
+
+    MeshPacket packet;
+    packet.header.version = 1;
+    packet.header.type = PacketType::DATA;
+    packet.header.src_id = node_id;
+    packet.header.dest_id = target_id;
+    
+    // Find next hop using routing engine
+    uint16_t next_hop = 0;
+    if (routing_engine.get_next_hop(target_id, next_hop)) {
+        packet.header.next_hop_id = next_hop;
+    } else {
+        // Fallback to direct broadcast/target if route not found yet
+        packet.header.next_hop_id = target_id;
+    }
+
+    packet.header.seq_num = ++current_seq;
+    packet.header.ttl = 10;
+    packet.header.payload_len = static_cast<uint8_t>(len);
+
+    std::memcpy(packet.payload, data, len);
+
+    uint8_t serialized_buffer[256];
+    size_t serialized_len = 0;
+
+    if (serialize_packet(packet, serialized_buffer, serialized_len)) {
+        std::cout << "Node 0x" << std::hex << node_id 
+                  << " transmitting packet to target 0x" << target_id << std::endl;
         return true;
     }
-    
-    // Maintain fixed window size for sequence history to prevent memory leaks
-    if (seen_packets.size() >= 100) {
-        seen_packets.erase(seen_packets.begin());
-    }
-    seen_packets.insert(seq);
+
     return false;
 }
 
-void MeshNode::update_peer(uint16_t sender_id, int8_t rssi, uint8_t hops, uint32_t current_time_ms) {
-    PeerInfo& peer = routing_table[sender_id];
-    peer.node_id = sender_id;
-    peer.rssi = rssi;
-    peer.hop_count = hops;
-    peer.last_seen_ms = current_time_ms;
-}
-
-void MeshNode::handle_received_packet(const uint8_t* raw_data, size_t len, int8_t rssi, uint32_t current_time_ms) {
+void MeshNode::process_incoming(const uint8_t* raw_buffer, size_t buffer_len, int8_t rssi) {
     MeshPacket packet;
-    if (!deserialize_packet(raw_data, len, packet)) {
+    if (!deserialize_packet(raw_buffer, buffer_len, packet)) {
+        std::cerr << "Node 0x" << std::hex << node_id << " packet deserialization failed!" << std::endl;
         return;
     }
 
-    if (is_duplicate(packet.header.sequence_num)) {
-        return;
+    // Update route dynamically via incoming beacon/packet metrics
+    routing_engine.process_beacon(packet.header.src_id, packet.header.dest_id, 1, rssi, 0);
+
+    if (packet.header.dest_id == node_id) {
+        std::cout << "Node 0x" << std::hex << node_id 
+                  << " successfully received packet intended for self!" << std::endl;
     }
-
-    update_peer(packet.header.sender_id, rssi, packet.header.ttl, current_time_ms);
-
-    if (packet.header.receiver_id == node_id || packet.header.receiver_id == 0xFFFF) {
-        // Core payload processing hook for swarm intelligence
-    } else if (packet.header.ttl > 1) {
-        // Dynamic multi-hop mesh forwarding (decrement TTL and relay)
-        packet.header.ttl--;
-    }
-}
-
-bool MeshNode::broadcast_payload(PacketType type, const uint8_t* data, uint8_t len) {
-    if (len > MAX_PAYLOAD_SIZE) return false;
-
-    MeshPacket packet;
-    packet.header.magic = PROTOCOL_MAGIC_BYTE;
-    packet.header.type = static_cast<uint8_t>(type);
-    packet.header.sender_id = node_id;
-    packet.header.receiver_id = 0xFFFF;
-    packet.header.sequence_num = ++current_seq;
-    packet.header.ttl = 5;
-    packet.header.payload_len = len;
-
-    if (data && len > 0) {
-        std::memcpy(packet.payload, data, len);
-    }
-
-    return true;
-}
-
-bool MeshNode::send_to_node(uint16_t target_id, PacketType type, const uint8_t* data, uint8_t len) {
-    if (len > MAX_PAYLOAD_SIZE) return false;
-
-    MeshPacket packet;
-    packet.header.magic = PROTOCOL_MAGIC_BYTE;
-    packet.header.type = static_cast<uint8_t>(type);
-    packet.header.sender_id = node_id;
-    packet.header.receiver_id = target_id;
-    packet.header.sequence_num = ++current_seq;
-    packet.header.ttl = 5;
-    packet.header.payload_len = len;
-
-    if (data && len > 0) {
-        std::memcpy(packet.payload, data, len);
-    }
-
-    return true;
-}
-
-void MeshNode::cleanup_dead_peers(uint32_t timeout_ms, uint32_t current_time_ms) {
-    for (auto it = routing_table.begin(); it != routing_table.end();) {
-        if (current_time_ms - it->second.last_seen_ms > timeout_ms) {
-            it = routing_table.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-
-const std::unordered_map<uint16_t, PeerInfo>& MeshNode::get_routing_table() const {
-    return routing_table;
 }
