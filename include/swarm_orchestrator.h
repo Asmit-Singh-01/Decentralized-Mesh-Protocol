@@ -1,32 +1,36 @@
 #pragma once
 
-#include "packet_format.h"
-#include "routing_engine.h"
 #include <cstdint>
 #include <cstddef>
+#include <unordered_map>
 #include <vector>
 
 struct SwarmTask {
-    uint16_t task_id;
-    uint8_t priority;
-    uint16_t assigned_node;
-    bool completed;
+    uint32_t task_id;
+    uint8_t task_type; // e.g., 0x01 = Frontier Exploration, 0x02 = Map Merging
+    uint16_t target_x;
+    uint16_t target_y;
+    bool assigned;
+    uint16_t assigned_node_id;
 };
 
 class SwarmOrchestrator {
 private:
     uint16_t local_node_id;
-    RoutingEngine routing_engine;
-    std::vector<SwarmTask> task_queue;
+    std::unordered_map<uint32_t, SwarmTask> active_tasks;
+    std::vector<uint32_t> local_task_queue;
 
 public:
     explicit SwarmOrchestrator(uint16_t node_id);
 
-    void init();
-    void assign_task(uint16_t task_id, uint8_t priority);
-    void process_incoming_task(const uint8_t* payload, uint8_t len);
-    void execute_orchestration_cycle(uint32_t current_time_ms);
-    void clear_tasks();
+    bool init();
+    void create_task(uint32_t task_id, uint8_t type, uint16_t x, uint16_t y);
     
-    const std::vector<SwarmTask>& get_tasks() const;
+    // Market-based auction bidding calculation
+    uint32_t calculate_bid_score(const SwarmTask& task, int8_t rssi, uint8_t hop_count) const;
+    
+    bool evaluate_and_bid(uint32_t task_id, int8_t rssi, uint8_t hop_count);
+    void execute_orchestration_cycle(uint32_t current_time_ms);
+
+    const std::unordered_map<uint32_t, SwarmTask>& get_active_tasks() const;
 };
