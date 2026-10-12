@@ -1,46 +1,58 @@
 #include "security_engine.h"
 #include <cstring>
+#include <algorithm>
 
 SecurityEngine::SecurityEngine() : key_set(false) {
-    std::memset(key, 0, sizeof(key));
+    std::memset(encryption_key, 0, sizeof(encryption_key));
 }
 
-// Fixed: Destructor implementation added to clear linker error
-SecurityEngine::~SecurityEngine() {
-    clear_key();
+void SecurityEngine::set_key(const uint8_t* key, size_t len) {
+    if (!key) return;
+    size_t copy_len = std::min(len, sizeof(encryption_key));
+    std::memcpy(encryption_key, key, copy_len);
+    key_set = true;
 }
 
 void SecurityEngine::clear_key() {
-    std::memset(key, 0, sizeof(key));
+    std::memset(encryption_key, 0, sizeof(encryption_key));
     key_set = false;
+    last_seen_sequences.clear();
 }
 
-bool SecurityEngine::set_key(const uint8_t* user_key, size_t key_len) {
-    if (!user_key || key_len != 16) {
-        return false;
-    }
-    std::memcpy(key, user_key, 16);
-    key_set = true;
-    return true;
-}
-
-void SecurityEngine::process_block(const uint8_t in[16], uint8_t out[16], const uint8_t nonce[16]) {
-    for (size_t i = 0; i < 16; ++i) {
-        out[i] = in[i] ^ key[i] ^ nonce[i];
-    }
-}
-
-bool SecurityEngine::encrypt(const uint8_t* plaintext, size_t len, uint8_t* ciphertext, const uint8_t nonce[16]) {
-    if (!key_set || !plaintext || !ciphertext || !nonce) {
-        return false;
-    }
+bool SecurityEngine::encrypt_payload(uint8_t* payload, size_t len, uint32_t nonce) const {
+    if (!payload || !key_set) return false;
+    
+    // Lightweight XOR-CTR stream cipher simulation using key and nonce
     for (size_t i = 0; i < len; ++i) {
-        ciphertext[i] = plaintext[i] ^ key[i % 16] ^ nonce[i % 16];
+        uint8_t keystream_byte = encryption_key[i % 16] ^ static_cast<uint8_t>((nonce >> (8 * (i % 4))) & 0xFF);
+        payload[i] ^= keystream_byte;
     }
     return true;
 }
 
-bool SecurityEngine::decrypt(const uint8_t* ciphertext, size_t len, uint8_t* plaintext, const uint8_t nonce[16]) {
-    return encrypt(ciphertext, len, plaintext, nonce);
+bool SecurityEngine::decrypt_payload(uint8_t* payload, size_t len, uint32_t nonce) const {
+    // CTR mode encryption is symmetric; decryption is identical to encryption
+    return encrypt_payload(payload, len, nonce);
+}
+
+bool SecurityEngine::validate_sequence(uint16_t sender_id, uint32_t seq_num) {
+    auto it = last_seen_sequences.find(sender_id);
+    if (it == last_seen_sequences.end()) {
+        last_seen_sequences[sender_id] = seq_num;
+        return true;
+    }
+
+    // Check if packet sequence is newer than the last recorded one
+    if (seq_num > it->second) {
+        it->second = seq_num;
+        return true;
+    }
+
+    // Duplicate or old sequence detected (Replay attack vector)
+    return false;
+}
+
+void SecurityEngine::reset_trackers() {
+    last_seen_sequences.clear();
 }
 
