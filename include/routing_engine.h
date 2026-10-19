@@ -26,13 +26,13 @@ public:
     explicit RoutingEngine(uint16_t node_id);
 
     void process_beacon(uint16_t sender_id, uint16_t dest_id, uint8_t hops, int8_t rssi, uint32_t current_time);
-    
-    // AODV Route Update Logic
     bool update_route(uint16_t dest_id, uint16_t next_hop, uint8_t hops, int8_t rssi, uint32_t seq_num, uint32_t current_time);
     
     bool get_next_hop(uint16_t destination_id, uint16_t& next_hop_out);
     void invalidate_route(uint16_t destination_id);
-    void prune_stale_routes(uint32_t current_time, uint32_t timeout_ms = 10000);
+    
+    // Self-healing liveness and stale route pruning
+    void prune_stale_routes(uint32_t current_time, uint32_t timeout_ms = 5000);
     void clear_table();
 
     const std::unordered_map<uint16_t, RouteEntry>& get_table() const;
