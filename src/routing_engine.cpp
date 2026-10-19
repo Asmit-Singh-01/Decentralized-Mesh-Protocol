@@ -1,17 +1,17 @@
 #include "routing_engine.h"
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 
 RoutingEngine::RoutingEngine(uint16_t node_id) : local_node_id(node_id) {}
 
 uint32_t RoutingEngine::compute_metric(uint8_t hops, int8_t rssi) const {
-    // Metric Formula: Lower score represents better link path quality
     int8_t abs_rssi = std::abs(rssi);
     return static_cast<uint32_t>(hops * 100 + abs_rssi);
 }
 
 void RoutingEngine::process_beacon(uint16_t sender_id, uint16_t dest_id, uint8_t hops, int8_t rssi, uint32_t current_time) {
-    (void)dest_id; // Unused parameter handled safely
+    (void)dest_id;
     update_route(sender_id, sender_id, hops + 1, rssi, 0, current_time);
 }
 
@@ -24,13 +24,11 @@ bool RoutingEngine::update_route(uint16_t dest_id, uint16_t next_hop, uint8_t ho
     auto it = routing_table.find(dest_id);
 
     if (it == routing_table.end()) {
-        // New Route Entry
         RouteEntry new_entry{dest_id, next_hop, hops, rssi, new_metric, current_time, seq_num};
         routing_table[dest_id] = new_entry;
         return true;
     }
 
-    // AODV Route Selection Rule: Sequence Number > Metric Cost
     if (seq_num > it->second.seq_num || 
        (seq_num == it->second.seq_num && new_metric < it->second.metric_cost)) {
         it->second.next_hop_id = next_hop;
@@ -61,6 +59,9 @@ void RoutingEngine::invalidate_route(uint16_t destination_id) {
 void RoutingEngine::prune_stale_routes(uint32_t current_time, uint32_t timeout_ms) {
     for (auto it = routing_table.begin(); it != routing_table.end(); ) {
         if ((current_time - it->second.last_updated_ms) > timeout_ms) {
+            std::cout << "[Self-Healing] Node 0x" << std::hex << local_node_id 
+                      << " dropping stale route to destination 0x" << it->first 
+                      << " due to heartbeat timeout." << std::dec << std::endl;
             it = routing_table.erase(it);
         } else {
             ++it;
@@ -75,4 +76,3 @@ void RoutingEngine::clear_table() {
 const std::unordered_map<uint16_t, RouteEntry>& RoutingEngine::get_table() const {
     return routing_table;
 }
-
