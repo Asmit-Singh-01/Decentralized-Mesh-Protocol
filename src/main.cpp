@@ -52,10 +52,15 @@ int main() {
         return 1;
     }
 
-    SwarmOrchestrator orchestrator(0x1001);
+        SwarmOrchestrator orchestrator(0x1001);
     orchestrator.init();
-    orchestrator.assign_task(101, 1);
+    
+    // Updated orchestrator method calls matching the new class structure
+    orchestrator.create_task(101, 0x01, 50, 100);
+    orchestrator.evaluate_and_bid(101, -65, 2);
+    
     orchestrator.execute_orchestration_cycle(1000);
+
 
     sec_engine.clear_key();
     std::cout << "Simulation completed successfully!" << std::endl;
