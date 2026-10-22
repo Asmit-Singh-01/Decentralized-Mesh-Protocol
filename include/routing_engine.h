@@ -19,6 +19,7 @@ class RoutingEngine {
 private:
     uint16_t local_node_id;
     std::unordered_map<uint16_t, RouteEntry> routing_table;
+    static constexpr uint32_t HYSTERESIS_THRESHOLD = 25; // Prevents route flapping from minor RSSI jitters
 
     uint32_t compute_metric(uint8_t hops, int8_t rssi) const;
 
@@ -31,7 +32,6 @@ public:
     bool get_next_hop(uint16_t destination_id, uint16_t& next_hop_out);
     void invalidate_route(uint16_t destination_id);
     
-    // Self-healing liveness and stale route pruning
     void prune_stale_routes(uint32_t current_time, uint32_t timeout_ms = 5000);
     void clear_table();
 
