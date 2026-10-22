@@ -1,4 +1,3 @@
-
 # ⚡ Decentralized Mesh Protocol (Open-Core Swarm OS)
 
 [![Build Status](https://github.com/Asmit-Singh-01/Decentralized-Mesh-Protocol/actions/workflows/build.yml/badge.svg)](https://github.com/Asmit-Singh-01/Decentralized-Mesh-Protocol/actions/workflows/build.yml)
@@ -6,7 +5,7 @@
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-ESP32-orange?style=for-the-badge&logo=platformio)
 ![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
 
-> **The Open-Standard Decentralized Backbone for Autonomous Swarm Robotics, Drones, and Distributed Edge Computing.**
+> **The Open-Standard Decentralized Backbone for Autonomous Multi-Domain Swarm Robotics (Air, Land, Underground, & Underwater).**
 
 ---
 
@@ -14,7 +13,7 @@
 
 The **Decentralized Mesh Protocol** is an open-core, lightweight, zero-dependency C++17 communication and orchestration layer designed to transform independent hardware nodes (ESP32, Raspberry Pi, STM32, Custom Robotics Platforms) into a unified, self-healing autonomous swarm.
 
-Unlike traditional ROS architectures that rely heavily on central network infrastructure, Wi-Fi access points, or master nodes, this protocol operates on zero-infrastructure **peer-to-peer (P2P) mesh topology**. Nodes auto-discover, form dynamically routed mesh graphs, execute mission tasks, and secure payloads over air using hardware-level AES-128 CTR encryption.
+Unlike traditional ROS architectures that rely heavily on central network infrastructure, Wi-Fi access points, or master nodes, this protocol operates on zero-infrastructure **peer-to-peer (P2P) mesh topology**. Nodes auto-discover, form dynamically routed mesh graphs, execute mission tasks, and secure payloads over air/water using hardware-level AES-128 CTR encryption and cross-media bridging.
 
 ---
 
@@ -28,11 +27,11 @@ The system is architected into 5 modular, loosely coupled abstractions:
 +-----------------------------------------------------------------+
 |           Swarm Orchestrator (Task Queue & Allocation)          |
 +-----------------------------------------------------------------+
-|             Dynamic Routing Engine (RSSI / Hop Metrics)         |
+|      Dynamic Routing Engine (RSSI, Metrics & Stale Pruning)     |
 +-----------------------------------------------------------------+
-|      Security & Integrity Layer (AES-128 Encryption & CRC16)    |
+|      Security & Anti-Replay Layer (AES-128 & Nonce Tracking)    |
 +-----------------------------------------------------------------+
-|     Hardware Abstraction Layer (HAL) (ESP-NOW / LoRa / Sim)     |
+| Multi-Domain Hardware Abstraction Layer (RF / Acoustic / HAL)   |
 +-----------------------------------------------------------------+
 
 
@@ -58,18 +57,24 @@ Decentralized-Mesh-Protocol/
 │   └── workflows/
 │       └── build.yml             # Automated CMake compile & execution CI
 ├── include/
-│   ├── esp_now_driver.h          # ESP32 ESP-NOW physical driver interface
-│   ├── mesh_node.h               # Core node state abstraction
+│   ├── acoustic_transceiver.h    # Subsurface acoustic modem driver (Underwater)
+│   ├── mesh_gateway.h            # Multi-domain cross-media packet bridging
+│   ├── mesh_node.h               # Core node state abstraction & buffers
 │   ├── packet_format.h           # Low-level bitfield packet definitions
-│   ├── radio_driver.h            # Pure virtual Hardware Abstraction Layer (HAL)
-│   ├── routing_engine.h          # Multi-hop mesh route tracking and RSSI pruning
-│   ├── security_engine.h         # AES-128 Encryption engine interface
-│   └── swarm_orchestrator.h      # Swarm task queue & state machine
+│   ├── rf_transceiver.h          # 2.4GHz RF transceiver driver implementation
+│   ├── ring_buffer.h             # Zero-copy lock-free static packet ring buffer
+│   ├── routing_engine.h          # Multi-hop mesh route tracking & stale pruning
+│   ├── security_engine.h         # AES-128 & anti-replay validation engine
+│   ├── swarm_orchestrator.h      # Decentralized task auction & queue
+│   └── transceiver_interface.h   # Pure virtual Hardware Abstraction Layer (HAL)
 ├── src/
+│   ├── acoustic_transceiver.cpp  # Acoustic transmission logic
 │   ├── esp_now_driver.cpp        # ESP32 physical / desktop mock bridge logic
-│   ├── main.cpp                  # Primary entry point & test harness
+│   ├── main.cpp                  # Primary multi-domain test harness & simulation
+│   ├── mesh_gateway.cpp          # Cross-medium routing implementation
+│   ├── mesh_node.cpp             # Node transceiver coordination
 │   ├── routing_engine.cpp        # Route lookup and metric calculation
-│   ├── security_engine.cpp       # AES-128 CTR implementation
+│   ├── security_engine.cpp       # AES-128 CTR & sequence tracking implementation
 │   └── swarm_orchestrator.cpp    # Mission task handling logic
 ├── tools/
 │   └── mesh_monitor.py           # Live python telemetry sniffer & logger
@@ -92,6 +97,7 @@ Decentralized-Mesh-Protocol/
 Clone the repository and run the simulated build target:
 
 ```bash
+
 # 1. Clone the repository
 git clone [https://github.com/Asmit-Singh-01/Decentralized-Mesh-Protocol.git](https://github.com/Asmit-Singh-01/Decentralized-Mesh-Protocol.git)
 cd Decentralized-Mesh-Protocol
