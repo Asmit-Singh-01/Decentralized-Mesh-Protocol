@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cstring>
 
-MeshNode::MeshNode(uint16_t id) : node_id(id), routing_engine(id), current_seq(0) {}
+MeshNode::MeshNode(uint16_t id) : node_id(id), routing_engine(id), mac_layer(id), current_seq(0) {}
 
 bool MeshNode::init() {
     std::cout << "Initializing MeshNode with ID: 0x" << std::hex << node_id << std::endl;
@@ -26,6 +26,12 @@ bool MeshNode::send_data(uint16_t target_id, const uint8_t* data, size_t len) {
         return false;
     }
 
+    // Perform CSMA/CA Channel Access check before broadcasting over air
+    if (!mac_layer.channel_access_with_backoff()) {
+        std::cerr << "[Error] Node 0x" << std::hex << node_id << " aborted transmission: Medium busy." << std::endl;
+        return false;
+    }
+
     MeshPacket packet;
     packet.header.version = 1;
     packet.header.type = PacketType::DATA;
@@ -45,7 +51,6 @@ bool MeshNode::send_data(uint16_t target_id, const uint8_t* data, size_t len) {
 
     std::memcpy(packet.payload, data, len);
 
-    // Push into zero-copy static TX ring buffer
     if (!queue_tx_packet(packet)) {
         std::cerr << "[Error] Node 0x" << std::hex << node_id << " TX Ring Buffer Full!" << std::endl;
         return false;
@@ -58,7 +63,7 @@ bool MeshNode::send_data(uint16_t target_id, const uint8_t* data, size_t len) {
 
         if (serialize_packet(packet_to_send, serialized_buffer, serialized_len)) {
             std::cout << "Node 0x" << std::hex << node_id 
-                      << " transmitting buffered packet to target 0x" << target_id << std::endl;
+                      << " successfully transmitted packet via clear channel to target 0x" << std::hex << target_id << std::endl;
             return true;
         }
     }
