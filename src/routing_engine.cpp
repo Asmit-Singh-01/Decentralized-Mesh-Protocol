@@ -29,8 +29,12 @@ bool RoutingEngine::update_route(uint16_t dest_id, uint16_t next_hop, uint8_t ho
         return true;
     }
 
+    // Apply Hysteresis: New route must be significantly better to trigger a route switch (prevents flapping)
+    bool is_significantly_better = (new_metric + HYSTERESIS_THRESHOLD < it->second.metric_cost);
+
     if (seq_num > it->second.seq_num || 
-       (seq_num == it->second.seq_num && new_metric < it->second.metric_cost)) {
+       (seq_num == it->second.seq_num && is_significantly_better)) {
+        
         it->second.next_hop_id = next_hop;
         it->second.hop_count = hops;
         it->second.link_quality_rssi = rssi;
