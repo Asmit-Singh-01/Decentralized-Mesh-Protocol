@@ -2,6 +2,7 @@
 
 #include "routing_engine.h"
 #include "ring_buffer.h"
+#include "mac_layer.h"
 #include <cstdint>
 #include <cstddef>
 
@@ -11,6 +12,7 @@ private:
     RoutingEngine routing_engine;
     PacketRingBuffer<64> tx_ring_buffer;
     PacketRingBuffer<64> rx_ring_buffer;
+    MacLayer mac_layer;
     uint32_t current_seq;
 
 public:
