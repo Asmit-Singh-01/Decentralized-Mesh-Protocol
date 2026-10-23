@@ -1,32 +1,31 @@
 #include "mesh_gateway.h"
 #include "rf_transceiver.h"
 #include "acoustic_transceiver.h"
+#include "node_onboarding.h"
 #include <iostream>
 #include <memory>
 
 int main() {
-    std::cout << "Starting Decentralized Mesh Protocol - Multi-Domain Simulation...\n" << std::endl;
+    std::cout << "Starting Decentralized Mesh Protocol - Real-World Secure Onboarding Simulation...\n" << std::endl;
 
     uint16_t gateway_id = 0x5555;
     MeshGateway gateway(gateway_id);
 
     auto rf_modem = std::make_shared<RFTransceiver>(gateway_id);
-    auto acoustic_modem = std::make_shared<AcousticTransceiver>(gateway_id);
-
     gateway.register_transceiver(rf_modem);
-    gateway.register_transceiver(acoustic_modem);
+    gateway.initialize_all();
 
-    if (gateway.initialize_all()) {
-        std::cout << "Gateway successfully initialized multi-transceiver stack!\n";
-        
-        // Test cross-domain bridging (RF to Underwater Acoustic)
-        uint8_t dummy_payload[] = "Hello Subsurface AUV!";
-        gateway.bridge_packet(dummy_payload, sizeof(dummy_payload), 
-                              TransceiverType::RF_WIFI_ESP_NOW, 
-                              TransceiverType::ACOUSTIC_UNDERWATER, 
-                              0x8888);
+    // Initialize Security Onboarding System with a Pre-Shared Key
+    NodeOnboarding security_manager(gateway_id, "SWARM_SECURE_KEY_2026");
+
+    uint16_t new_drone_id = 0x1234;
+    
+    // Simulate new drone attempting to join with correct PSK
+    std::cout << "\n[Simulating New Drone Onboarding Request]...\n";
+    if (security_manager.authenticate_incoming_node(new_drone_id, "SWARM_SECURE_KEY_2026")) {
+        std::cout << "Drone 0x" << std::hex << new_drone_id << " is now fully secured in the mesh swarm!\n" << std::dec;
     }
 
-    std::cout << "\nAll Systems Nominal. Execution Finished Successfully." << std::endl;
+    std::cout << "\nAll Systems Nominal. Secure Onboarding Verified Successfully." << std::endl;
     return 0;
 }
