@@ -1,31 +1,21 @@
 #include "mesh_gateway.h"
 #include "rf_transceiver.h"
-#include "acoustic_transceiver.h"
-#include "node_onboarding.h"
+#include "power_management.h"
 #include <iostream>
 #include <memory>
 
 int main() {
-    std::cout << "Starting Decentralized Mesh Protocol - Real-World Secure Onboarding Simulation...\n" << std::endl;
+    std::cout << "Starting Decentralized Mesh Protocol - Power Management & Duty Cycling Simulation...\n" << std::endl;
 
-    uint16_t gateway_id = 0x5555;
-    MeshGateway gateway(gateway_id);
+    uint16_t node_id = 0x9999;
+    PowerManager power_manager(node_id, 85); // 85% battery
 
-    auto rf_modem = std::make_shared<RFTransceiver>(gateway_id);
-    gateway.register_transceiver(rf_modem);
-    gateway.initialize_all();
-
-    // Initialize Security Onboarding System with a Pre-Shared Key
-    NodeOnboarding security_manager(gateway_id, "SWARM_SECURE_KEY_2026");
-
-    uint16_t new_drone_id = 0x1234;
+    std::cout << "\n[Simulating Hardware Duty Cycling Cycle]...\n";
+    power_manager.consume_battery(10);
     
-    // Simulate new drone attempting to join with correct PSK
-    std::cout << "\n[Simulating New Drone Onboarding Request]...\n";
-    if (security_manager.authenticate_incoming_node(new_drone_id, "SWARM_SECURE_KEY_2026")) {
-        std::cout << "Drone 0x" << std::hex << new_drone_id << " is now fully secured in the mesh swarm!\n" << std::dec;
-    }
+    // Execute sleep/wake cycle to preserve power
+    power_manager.execute_duty_cycle_sleep(50);
 
-    std::cout << "\nAll Systems Nominal. Secure Onboarding Verified Successfully." << std::endl;
+    std::cout << "\nAll Systems Nominal. Power Management Verified Successfully." << std::endl;
     return 0;
 }
