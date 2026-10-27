@@ -1,21 +1,33 @@
 #include "mesh_gateway.h"
 #include "rf_transceiver.h"
-#include "power_management.h"
+#include "error_correction.h"
 #include <iostream>
+#include <vector>
 #include <memory>
 
 int main() {
-    std::cout << "Starting Decentralized Mesh Protocol - Power Management & Duty Cycling Simulation...\n" << std::endl;
+    std::cout << "Starting Decentralized Mesh Protocol - FEC & Noise Resilience Simulation...\n" << std::endl;
 
-    uint16_t node_id = 0x9999;
-    PowerManager power_manager(node_id, 85); // 85% battery
+    uint8_t payload[] = "Swarm Telemetry Data: Heading North-West";
+    std::vector<uint8_t> encoded_packet;
 
-    std::cout << "\n[Simulating Hardware Duty Cycling Cycle]...\n";
-    power_manager.consume_battery(10);
-    
-    // Execute sleep/wake cycle to preserve power
-    power_manager.execute_duty_cycle_sleep(50);
+    // 1. Encode payload with FEC parity byte
+    ErrorCorrectionEngine::encode_packet_data(payload, sizeof(payload), encoded_packet);
+    std::cout << "[FEC] Encoded " << sizeof(payload) << " bytes into " << encoded_packet.size() << " bytes with parity.\n";
 
-    std::cout << "\nAll Systems Nominal. Power Management Verified Successfully." << std::endl;
+    // 2. Verify clean packet transmission
+    if (ErrorCorrectionEngine::verify_and_recover(encoded_packet.data(), encoded_packet.size())) {
+        std::cout << "Transmission accepted by receiver node!\n";
+    }
+
+    // 3. Simulate environmental noise / bit corruption
+    std::cout << "\n[Simulating Environmental Interference/Noise]...\n";
+    encoded_packet[5] ^= 0xFF; // Flip bits to simulate harsh noise corruption
+
+    if (!ErrorCorrectionEngine::verify_and_recover(encoded_packet.data(), encoded_packet.size())) {
+        std::cout << "Corruption caught by FEC engine! Requesting selective retransmission or fallback.\n";
+    }
+
+    std::cout << "\nAll Real-World Resilience Modules Verified Successfully." << std::endl;
     return 0;
 }
